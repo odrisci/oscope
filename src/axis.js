@@ -1,7 +1,7 @@
 oscope_contextPrototype.axis = function() {
   var context = this,
       scale = context.scale,
-      axis_ = d3.svg.axis().scale(scale);
+      axis_ = d3.svg.axis().scale(scale).tickFormat(oscope_timeFormat);
 
   var formatDefault = context.step() < 6e4 ? oscope_axisFormatSeconds
       : context.step() < 864e5 ? oscope_axisFormatMinutes
@@ -39,6 +39,7 @@ oscope_contextPrototype.axis = function() {
         }
       }
     });
+
   }
 
   axis.remove = function(selection) {
@@ -68,6 +69,6 @@ oscope_contextPrototype.axis = function() {
       "tickFormat");
 };
 
-var oscope_axisFormatSeconds = d3.time.format("%H:%M:%S %p"),
-    oscope_axisFormatMinutes = d3.time.format("%H:%M %p"),
+var oscope_axisFormatSeconds = d3.time.format("%H:%M:%S"),
+    oscope_axisFormatMinutes = d3.time.format("%H:%M"),
     oscope_axisFormatDays = d3.time.format("%B %d");

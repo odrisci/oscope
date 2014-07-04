@@ -1,3 +1,15 @@
+// use a 24 hour clock on the x-axis
+var oscope_timeFormat = d3.time.format.multi([
+  [".%L", function(d) { return d.getMilliseconds(); }],
+  [":%S", function(d) { return d.getSeconds(); }],
+  ["%H:%M", function(d) { return d.getMinutes(); }],
+  ["%H", function(d) { return d.getHours(); }],
+  ["%a %d", function(d) { return d.getDay() && d.getDate() != 1; }],
+  ["%b %d", function(d) { return d.getDate() != 1; }],
+  ["%B", function(d) { return d.getMonth(); }],
+  ["%Y", function() { return true; }]
+]);
+
 oscope.context = function() {
   var context = new oscope_context(),
       step = 1e4, // ten seconds, in milliseconds

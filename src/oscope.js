@@ -9,7 +9,7 @@ oscope_contextPrototype.oscope = function(){
       extent = null,
       title = oscope_identity,
       format = d3.format('.2s'),
-      colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"];
+      colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       barWidth = 5;
 
   function oscope(selection) {

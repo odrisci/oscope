@@ -1,5 +1,6 @@
 /*! oscope v1.6.0 - 2014-07-04 
  * License:  */
+'use strict';
 (function(exports){
 var oscope = exports.oscope = {version: "1.6.0"};
 var oscope_id = 0;
@@ -122,6 +123,18 @@ oscope.modularTimeScale = function(){
 
 };
 
+
+// use a 24 hour clock on the x-axis
+var oscope_timeFormat = d3.time.format.multi([
+  [".%L", function(d) { return d.getMilliseconds(); }],
+  [":%S", function(d) { return d.getSeconds(); }],
+  ["%H:%M", function(d) { return d.getMinutes(); }],
+  ["%H", function(d) { return d.getHours(); }],
+  ["%a %d", function(d) { return d.getDay() && d.getDate() != 1; }],
+  ["%b %d", function(d) { return d.getDate() != 1; }],
+  ["%B", function(d) { return d.getMonth(); }],
+  ["%Y", function() { return true; }]
+]);
 
 oscope.context = function() {
   var context = new oscope_context(),
@@ -503,7 +516,7 @@ oscope_contextPrototype.oscope = function(){
       extent = null,
       title = oscope_identity,
       format = d3.format('.2s'),
-      colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"];
+      colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       barWidth = 5;
 
   function oscope(selection) {
@@ -949,7 +962,7 @@ function oscope_comparisonRoundOdd(i) {
 oscope_contextPrototype.axis = function() {
   var context = this,
       scale = context.scale,
-      axis_ = d3.svg.axis().scale(scale);
+      axis_ = d3.svg.axis().scale(scale).tickFormat(oscope_timeFormat);
 
   var formatDefault = context.step() < 6e4 ? oscope_axisFormatSeconds
       : context.step() < 864e5 ? oscope_axisFormatMinutes
@@ -987,6 +1000,7 @@ oscope_contextPrototype.axis = function() {
         }
       }
     });
+
   }
 
   axis.remove = function(selection) {
@@ -1016,8 +1030,8 @@ oscope_contextPrototype.axis = function() {
       "tickFormat");
 };
 
-var oscope_axisFormatSeconds = d3.time.format("%H:%M:%S %p"),
-    oscope_axisFormatMinutes = d3.time.format("%H:%M %p"),
+var oscope_axisFormatSeconds = d3.time.format("%H:%M:%S"),
+    oscope_axisFormatMinutes = d3.time.format("%H:%M"),
     oscope_axisFormatDays = d3.time.format("%B %d");
 
 oscope_contextPrototype.rule = function() {
