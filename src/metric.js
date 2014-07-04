@@ -1,56 +1,62 @@
-function cubism_metric(context) {
-  if (!(context instanceof cubism_context)) throw new Error("invalid context");
+function oscope_metric(context) {
+  if (!(context instanceof oscope_context)) throw new Error("invalid context");
   this.context = context;
 }
 
-var cubism_metricPrototype = cubism_metric.prototype;
+var oscope_metricPrototype = oscope_metric.prototype;
 
-cubism.metric = cubism_metric;
+oscope.metric = oscope_metric;
 
-cubism_metricPrototype.valueAt = function() {
+oscope_metricPrototype.valueAt = function() {
   return NaN;
 };
 
-cubism_metricPrototype.alias = function(name) {
+oscope_metricPrototype.getValuesInRange = function() {
+  return [];
+};
+
+oscope_metricPrototype.alias = function(name) {
   this.toString = function() { return name; };
   return this;
 };
 
-cubism_metricPrototype.extent = function() {
+oscope_metricPrototype.extent = function() {
   var i = 0,
-      n = this.context.size(),
       value,
       min = Infinity,
-      max = -Infinity;
+      max = -Infinity,
+      dom = this.context.scale.domain(),
+      theTS = values.getValuesInRange( dom[0], dom[1] ),
+      n = theTS.length;
   while (++i < n) {
-    value = this.valueAt(i);
+    value = theTS[i][1];
     if (value < min) min = value;
     if (value > max) max = value;
   }
   return [min, max];
 };
 
-cubism_metricPrototype.on = function(type, listener) {
+oscope_metricPrototype.on = function(type, listener) {
   return arguments.length < 2 ? null : this;
 };
 
-cubism_metricPrototype.shift = function() {
+oscope_metricPrototype.shift = function() {
   return this;
 };
 
-cubism_metricPrototype.on = function() {
+oscope_metricPrototype.on = function() {
   return arguments.length < 2 ? null : this;
 };
 
-cubism_contextPrototype.metric = function(request, name) {
+oscope_contextPrototype.metric = function(request, name) {
   var context = this,
-      metric = new cubism_metric(context),
-      id = ".metric-" + ++cubism_id,
+      metric = new oscope_metric(context),
+      id = ".metric-" + ++oscope_id,
       start = -Infinity,
       stop,
       step = context.step(),
       size = context.size(),
-      values = [],
+      values = new ts.timeSeries(),
       event = d3.dispatch("change"),
       listening = 0,
       fetching;
@@ -60,13 +66,12 @@ cubism_contextPrototype.metric = function(request, name) {
     var steps = Math.min(size, Math.round((start1 - start) / step));
     if (!steps || fetching) return; // already fetched, or fetching!
     fetching = true;
-    steps = Math.min(size, steps + cubism_metricOverlap);
+    steps = Math.min(size, steps + oscope_metricOverlap);
     var start0 = new Date(stop - steps * step);
     request(start0, stop, step, function(error, data) {
       fetching = false;
       if (error) return console.warn(error);
-      var i = isFinite(start) ? Math.round((start0 - start) / step) : 0;
-      for (var j = 0, m = data.length; j < m; ++j) values[j + i] = data[j];
+      values.splice(data);
       event.change.call(metric, start, stop);
     });
   }
@@ -74,19 +79,25 @@ cubism_contextPrototype.metric = function(request, name) {
   // When the context changes, switch to the new data, ready-or-not!
   function beforechange(start1, stop1) {
     if (!isFinite(start)) start = start1;
-    values.splice(0, Math.max(0, Math.min(size, Math.round((start1 - start) / step))));
+    values.dropDataBefore(start1);
     start = start1;
     stop = stop1;
   }
 
   //
   metric.valueAt = function(i) {
-    return values[i];
+    var t = context.scale.invert(i);
+
+    return values.getValueNearest(t)[1];
+  };
+
+  metric.getValuesInRange = function( t0, t1 ){
+    return values.getValuesInRange(t0, t1);
   };
 
   //
   metric.shift = function(offset) {
-    return context.metric(cubism_metricShift(request, +offset));
+    return context.metric(oscope_metricShift(request, +offset));
   };
 
   //
@@ -95,7 +106,7 @@ cubism_contextPrototype.metric = function(request, name) {
 
     // If there are no listeners, then stop listening to the context,
     // and avoid unnecessary fetches.
-    if (listener == null) {
+    if (listener === null) {
       if (event.on(type) != null && --listening == 0) {
         context.on("prepare" + id, null).on("beforechange" + id, null);
       }
@@ -109,7 +120,7 @@ cubism_contextPrototype.metric = function(request, name) {
 
     // Notify the listener of the current start and stop time, as appropriate.
     // This way, charts can display synchronous metrics immediately.
-    if (listener != null) {
+    if (listener !== null) {
       if (/^change(\.|$)/.test(type)) listener.call(context, start, stop);
     }
 
@@ -125,10 +136,10 @@ cubism_contextPrototype.metric = function(request, name) {
 };
 
 // Number of metric to refetch each period, in case of lag.
-var cubism_metricOverlap = 6;
+var oscope_metricOverlap = 6;
 
 // Wraps the specified request implementation, and shifts time by the given offset.
-function cubism_metricShift(request, offset) {
+function oscope_metricShift(request, offset) {
   return function(start, stop, step, callback) {
     request(new Date(+start + offset), new Date(+stop + offset), step, callback);
   };

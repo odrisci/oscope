@@ -1,1 +1,1 @@
-function cubism_identity(d) { return d; }
+function oscope_identity(d) { return d; }

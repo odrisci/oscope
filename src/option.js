@@ -1,9 +1,9 @@
-cubism.option = function(name, defaultValue) {
-  var values = cubism.options(name);
+oscope.option = function(name, defaultValue) {
+  var values = oscope.options(name);
   return values.length ? values[0] : defaultValue;
 };
 
-cubism.options = function(name, defaultValues) {
+oscope.options = function(name, defaultValues) {
   var options = location.search.substring(1).split("&"),
       values = [],
       i = -1,

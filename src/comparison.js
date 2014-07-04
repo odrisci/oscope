@@ -1,4 +1,4 @@
-cubism_contextPrototype.comparison = function() {
+oscope_contextPrototype.comparison = function() {
   var context = this,
       width = context.size(),
       height = 120,
@@ -6,9 +6,9 @@ cubism_contextPrototype.comparison = function() {
       primary = function(d) { return d[0]; },
       secondary = function(d) { return d[1]; },
       extent = null,
-      title = cubism_identity,
-      formatPrimary = cubism_comparisonPrimaryFormat,
-      formatChange = cubism_comparisonChangeFormat,
+      title = oscope_identity,
+      formatPrimary = oscope_comparisonPrimaryFormat,
+      formatChange = oscope_comparisonChangeFormat,
       colors = ["#9ecae1", "#225b84", "#a1d99b", "#22723a"],
       strokeWidth = 1.5;
 
@@ -34,7 +34,7 @@ cubism_contextPrototype.comparison = function() {
 
     selection.each(function(d, i) {
       var that = this,
-          id = ++cubism_id,
+          id = ++oscope_id,
           primary_ = typeof primary === "function" ? primary.call(that, d, i) : primary,
           secondary_ = typeof secondary === "function" ? secondary.call(that, d, i) : secondary,
           extent_ = typeof extent === "function" ? extent.call(that, d, i) : extent,
@@ -60,8 +60,8 @@ cubism_contextPrototype.comparison = function() {
 
         // consistent overplotting
         var round = start / context.step() & 1
-            ? cubism_comparisonRoundOdd
-            : cubism_comparisonRoundEven;
+            ? oscope_comparisonRoundOdd
+            : oscope_comparisonRoundEven;
 
         // positive changes
         canvas.fillStyle = colors[2];
@@ -123,8 +123,8 @@ cubism_contextPrototype.comparison = function() {
       function firstChange(start, stop) {
         change(start, stop), focus();
         if (ready) {
-          primary_.on("change.comparison-" + id, cubism_identity);
-          secondary_.on("change.comparison-" + id, cubism_identity);
+          primary_.on("change.comparison-" + id, oscope_identity);
+          secondary_.on("change.comparison-" + id, oscope_identity);
         }
       }
 
@@ -218,13 +218,13 @@ cubism_contextPrototype.comparison = function() {
   return comparison;
 };
 
-var cubism_comparisonPrimaryFormat = d3.format(".2s"),
-    cubism_comparisonChangeFormat = d3.format("+.0%");
+var oscope_comparisonPrimaryFormat = d3.format(".2s"),
+    oscope_comparisonChangeFormat = d3.format("+.0%");
 
-function cubism_comparisonRoundEven(i) {
+function oscope_comparisonRoundEven(i) {
   return i & 0xfffffe;
 }
 
-function cubism_comparisonRoundOdd(i) {
+function oscope_comparisonRoundOdd(i) {
   return ((i + 1) & 0xfffffe) - 1;
 }

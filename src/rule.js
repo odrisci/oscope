@@ -1,18 +1,18 @@
-cubism_contextPrototype.rule = function() {
+oscope_contextPrototype.rule = function() {
   var context = this,
-      metric = cubism_identity;
+      metric = oscope_identity;
 
   function rule(selection) {
-    var id = ++cubism_id;
+    var id = ++oscope_id;
 
     var line = selection.append("div")
         .datum({id: id})
         .attr("class", "line")
-        .call(cubism_ruleStyle);
+        .call(oscope_ruleStyle);
 
     selection.each(function(d, i) {
       var that = this,
-          id = ++cubism_id,
+          id = ++oscope_id,
           metric_ = typeof metric === "function" ? metric.call(that, d, i) : metric;
 
       if (!metric_) return;
@@ -28,8 +28,8 @@ cubism_contextPrototype.rule = function() {
 
         var lines = selection.selectAll(".metric").data(values);
         lines.exit().remove();
-        lines.enter().append("div").attr("class", "metric line").call(cubism_ruleStyle);
-        lines.style("left", cubism_ruleLeft);
+        lines.enter().append("div").attr("class", "metric line").call(oscope_ruleStyle);
+        lines.style("left", oscope_ruleLeft);
       }
 
       context.on("change.rule-" + id, change);
@@ -39,7 +39,7 @@ cubism_contextPrototype.rule = function() {
     context.on("focus.rule-" + id, function(i) {
       line.datum(i)
           .style("display", i == null ? "none" : null)
-          .style("left", i == null ? null : cubism_ruleLeft);
+          .style("left", i == null ? null : oscope_ruleLeft);
     });
   }
 
@@ -63,7 +63,7 @@ cubism_contextPrototype.rule = function() {
   return rule;
 };
 
-function cubism_ruleStyle(line) {
+function oscope_ruleStyle(line) {
   line
       .style("position", "absolute")
       .style("top", 0)
@@ -72,6 +72,6 @@ function cubism_ruleStyle(line) {
       .style("pointer-events", "none");
 }
 
-function cubism_ruleLeft(i) {
+function oscope_ruleLeft(i) {
   return i + "px";
 }
