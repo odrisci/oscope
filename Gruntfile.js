@@ -19,7 +19,20 @@ module.exports = function (grunt) {
   var name = '<%= pkg.name %>-v<%= pkg.version %>';
   var latest = '<%= pkg.name %>';
   var footerContent = '})(this);';
-  var srcFiles = 'src/**/*.js';
+  var srcFiles = [
+    'src/id.js',
+    'src/identity.js',
+    'src/option.js',
+    'src/modularTimeScale.js',
+    'src/context.js',
+    'src/metric.js',
+    'src/metric-constant.js',
+    'src/metric-operator.js',
+    'src/oscope.js',
+    'src/comparison.js',
+    'src/axis.js',
+    'src/rule.js' 
+    ];
   var specFiles = 'test/spec/**/*.js';
 
   // Load grunt tasks automatically
