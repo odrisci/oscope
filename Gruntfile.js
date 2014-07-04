@@ -13,6 +13,7 @@ module.exports = function (grunt) {
   var bannerContent = '/*! <%= pkg.name %> v<%= pkg.version %> - ' +
                       '<%= grunt.template.today("yyyy-mm-dd") %> \n' +
                       ' * License: <%= pkg.license %> */\n' +
+                      '\'use strict\';\n' +
                       '(function(exports){\n' +
                       'var oscope = exports.oscope = {version: "<%= pkg.version %>"};\n';
 
@@ -78,7 +79,7 @@ module.exports = function (grunt) {
       },
       all: [
         'Gruntfile.js',
-        srcFiles
+        'oscope.js'
       ],
       test: {
         options: {
@@ -115,7 +116,10 @@ module.exports = function (grunt) {
     },
 
     watch: {
-
+      src: {
+        files: [ srcFiles, 'Gruntfile.js' ],
+        tasks: ['build', 'jshint'  ]
+      }
     },
 
     // Test settings
@@ -165,8 +169,7 @@ module.exports = function (grunt) {
   ]);
 
   grunt.registerTask('default', [
-    'newer:jshint',
-    'test',
-    'build'
+    'build',
+    'watch'
   ]);
 };
