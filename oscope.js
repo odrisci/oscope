@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2014-07-04 
+/*! oscope v1.6.0 - 2014-07-07 
  * License:  */
 'use strict';
 (function(exports){
@@ -529,13 +529,6 @@ oscope_contextPrototype.oscope = function(){
       .attr('width', width)
       .attr('height', height);
 
-    selection.append('span')
-      .attr('class', 'title')
-      .text(title);
-
-    selection.append('span')
-      .attr('class', 'value');
-
     selection.each(function(d,i) {
       var that = this,
           id = ++oscope_id,
@@ -545,12 +538,54 @@ oscope_contextPrototype.oscope = function(){
           start = -Infinity,
           step = context.step(),
           canvas = d3.select(that).select('canvas'),
-          span = d3.select(that).select('.value'),
+          span,
           max_,
-          ready;
+          ready,
+          offset = 0,
+          offsets = [0],
+          numMetrics = 1,
+          focusValue = [[]],
+          metricIsArray = (metric_ instanceof Array);
 
       canvas.datum({id: id, metric: metric_});
       canvas = canvas.node().getContext('2d');
+      canvas.translate(0.5,0.5);
+
+      if( metricIsArray ){
+        numMetrics = metric_.length;
+        if( extent_ !== null ){
+          offset = (extent_[1] - extent_[0])/numMetrics;
+          offsets = new Array(numMetrics);
+          var k = 0;
+          offsets[0] = extent_[1] - offset/2;
+          for( k = 1; k < numMetrics; ++k ){
+            offsets[k] = offsets[k-1] - offset;
+          }
+        }
+        focusValue = new Array( numMetrics );
+      }
+
+      // Update the domain and range
+      scale.domain(extent_);
+      scale.range([height,0]); // note inversion of canvas y-axis
+
+
+      d3.select(that).selectAll('.title')
+        .data( metricIsArray ? metric_ : [metric_] )
+        .enter()
+          .append('span')
+            .attr('class', 'title')
+            .text(title)
+            .style('top',function(d,i){ return scale( offsets[i] ) - 17 + 'px'; } );
+
+      span = d3.select(that).selectAll('.value')
+        .data( focusValue )
+        .enter()
+          .append('span')
+            .attr('class', 'value')
+            .style('top', function(d,i){ return scale( offsets[i] ) - 17 + 'px'; } )
+            .text(function(d){ return isNaN(d) ? null : format; });
+
 
       function change(start1, stop){
         canvas.save();
@@ -569,6 +604,7 @@ oscope_contextPrototype.oscope = function(){
         // Update the domain and range
         scale.domain(extent);
         scale.range([height,0]); // note inversion of canvas y-axis
+
 
         // Erase old data
         if( !isFinite(start) ){
@@ -590,51 +626,69 @@ oscope_contextPrototype.oscope = function(){
         // Where to start the blank bar on the next go around
         start = stop;
 
-        // Now get some data to plot
-        var ts = metric_.getValuesInRange( t0, stop );
+        // Handle the cases of array of metrics or a single metric:
+        var metricIdx = 0,
+            currMetric;
 
-        if( ts.length > 0 ){
+        var incrementTsIdx = function(){
+          tsIdx++;
+          if( tsIdx < ts.length ){
+            x = Math.round( context.scale(ts[tsIdx][0]) );
+            y = Math.round( scale(ts[tsIdx][1]+offsets[metricIdx]) );
+          }
+        };
 
-          ready = true;
 
-          var tsIdx = 0;
-          var x = context.scale(ts[tsIdx][0]),
-              y = scale(ts[tsIdx][1]),
-              xLast = context.scale(ts[ts.length-1][0]);
+        for( metricIdx = 0; metricIdx < numMetrics; ++metricIdx ){
 
-          var incrementTsIdx = function(){
-            tsIdx++;
-            if( tsIdx < ts.length ){
-              x = context.scale(ts[tsIdx][0]);
-              y = scale(ts[tsIdx][1]);
+          if( metricIsArray ){
+            currMetric = metric_[metricIdx];
+            if( typeof currMetric === 'function' ){
+              currMetric = currMetric.call( that, d, i );
             }
-          };
+          }
+          else{
+            currMetric = metric_;
+          }
 
-          canvas.beginPath();
-          canvas.strokeStyle = colors_[0];
-          canvas.lineWidth = 1;
+          // Now get some data to plot
+          var ts = currMetric.getValuesInRange( t0, stop );
 
-          canvas.moveTo(x, y);
+          if( ts.length > 0 ){
 
-          // Find wraparound:
-          if( x > xLast ){
-            while( x > xLast ){
+            ready = true;
+
+            var tsIdx = 0;
+            var x = context.scale(ts[tsIdx][0]),
+                y = scale(ts[tsIdx][1]+offsets[metricIdx]),
+                xLast = context.scale(ts[ts.length-1][0]);
+
+            canvas.beginPath();
+            canvas.strokeStyle = colors_[metricIdx];
+            canvas.lineWidth = 2;
+
+            canvas.moveTo(x, y);
+
+            // Find wraparound:
+            if( x > xLast ){
+              while( x > xLast ){
+                canvas.lineTo(x,y);
+                incrementTsIdx();
+              }
+
+              canvas.moveTo(x,y);
+            }
+
+            incrementTsIdx();
+
+            while( tsIdx < ts.length ){
               canvas.lineTo(x,y);
               incrementTsIdx();
             }
 
-            canvas.moveTo(x,y);
+            canvas.stroke();
+
           }
-
-          incrementTsIdx();
-
-          while( tsIdx < ts.length ){
-            canvas.lineTo(x,y);
-            incrementTsIdx();
-          }
-
-          canvas.stroke();
-
         }
 
         canvas.restore();
@@ -642,10 +696,16 @@ oscope_contextPrototype.oscope = function(){
 
       function focus(i){
         if(i===null) i = context.scale(start-step);
-        var value = metric_.valueAt(i);
-        if( value !== undefined ){
-          span.datum(value).text(isNaN(value) || value.length === 0 ? null : format);
+        for( var j = 0; j < numMetrics; ++j ){
+          if( metricIsArray ){
+            focusValue[j] = metric_[j].valueAt(i);
+          }
+          else{
+            focusValue = [metric_.valueAt(i)];
+          }
         }
+        span.data( focusValue )
+            .text(function(d){ return isNaN(d) ? null : format(d); });
       }
 
       // update the chart when the context changes
@@ -656,10 +716,21 @@ oscope_contextPrototype.oscope = function(){
       // but defer subsequent updates to the canvas change
       // Note that someone still needs to listen to the metric,
       // so that it continues to update automatically
-      metric_.on('change.oscope-' + id, function(start, stop){
-        change(start, stop), focus();
-        if(ready) metric_.on('change.oscope-' + id, oscope_identity);
-      });
+      var metricChange = function( theMetric ){
+        return function( start, stop ){
+          change(start, stop), focus();
+          if(ready) theMetric.on('change.oscope-' + id, oscope_identity);
+        };
+      };
+
+      if( metric_ instanceof Array ){
+        for( var j = 0; j < metric_.length; ++j ){
+          metric_[j].on('change.oscope-' + id, metricChange(metric_[j]) );
+        }
+      }
+      else{
+        metric_.on('change.oscope-' + id, metricChange(metric_) );
+      }
     });
   }
 
