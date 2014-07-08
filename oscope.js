@@ -1,8 +1,8 @@
-/*! oscope v1.6.0 - 2014-07-08 
+/*! oscope v1.6.2 - 2014-07-08 
  * License:  */
 'use strict';
 (function(exports){
-var oscope = exports.oscope = {version: "1.6.0"};
+var oscope = exports.oscope = {version: "1.6.2"};
 var oscope_id = 0;
 
 function oscope_identity(d) { return d; }
@@ -63,7 +63,7 @@ oscope.modularTimeScale = function(){
     }
 
     while( stop <= tleft_ ){
-      tleft_ -= duration;
+      tleft_ -= duration_;
     }
 
     lscale_.domain([tleft_,+tleft_+duration_]);
@@ -140,23 +140,22 @@ oscope.context = function() {
   var context = new oscope_context(),
       step = 1e4, // ten seconds, in milliseconds
       size = 1440, // four hours at ten seconds, in pixels
+      duration = size*step, // duration of the window in milliseconds
       start0, stop0, // the start and stop for the previous change event
       start1, stop1, // the start and stop for the next prepare event
-      tleft,         // time at the left hand edge of the scale
       serverDelay = 5e3,
       clientDelay = 5e3,
       event = d3.dispatch("prepare", "beforechange", "change", "focus"),
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
       timeout,
       focus,
-      overlap = oscope_metricOverlap;
-
+      overlap = oscope_metricOverlap * step;
   function update() {
     var now = Date.now();
-    stop0 = new Date(Math.floor((now - serverDelay - clientDelay) / step) * step);
-    start0 = new Date(stop0 - size * step);
-    stop1 = new Date(Math.floor((now - serverDelay) / step) * step);
-    start1 = new Date(stop1 - size * step);
+    stop0 = new Date(now - serverDelay - clientDelay);
+    start0 = new Date(stop0 - duration);
+    stop1 = new Date(now - serverDelay);
+    start1 = new Date(stop1 - duration);
 
     scale.domain([start0,stop0]);
     scale.nice();
@@ -175,11 +174,12 @@ oscope.context = function() {
     if (delay < clientDelay) delay += step;
 
     timeout = setTimeout(function prepare() {
-      stop1 = new Date(Math.floor((Date.now() - serverDelay) / step) * step);
-      start1 = new Date(stop1 - size * step);
+      stop1 = new Date(Date.now() - serverDelay - overlap);
+      start1 = new Date(stop1 - duration);
+      var dataStop = new Date( +stop1 + overlap );
 
 
-      event.prepare.call(context, start1, stop1);
+      event.prepare.call(context, start1, dataStop);
 
       setTimeout(function() {
         scale.domain([start0 = start1, stop0 = stop1]);
@@ -213,6 +213,14 @@ oscope.context = function() {
   context.size = function(_) {
     if (!arguments.length) return size;
     scale.range([0, size = +_]);
+    return update();
+  };
+
+  // Set or get the context size (the count of metric values).
+  // Defaults to 1440 (four hours at ten seconds).
+  context.duration = function(_) {
+    if (!arguments.length) return duration;
+    duration = _;
     return update();
   };
 
@@ -349,6 +357,7 @@ oscope_contextPrototype.metric = function(request, name) {
       stop,
       step = context.step(),
       size = context.size(),
+      duration = context.duration(),
       values = new ts.timeSeries(),
       event = d3.dispatch("change"),
       listening = 0,
@@ -356,10 +365,10 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    var steps = Math.min(size, Math.round((start1 - start) / step));
+    var steps = Math.min(Math.floor(duration/step), Math.round((start1 - start) / step));
     if (!steps || fetching) return; // already fetched, or fetching!
     fetching = true;
-    steps = Math.min(size, steps + oscope_metricOverlap);
+    steps = Math.min(Math.floor(duration/step), steps + oscope_metricOverlap);
     var start0 = new Date(stop - steps * step);
     request(start0, stop, step, function(error, data) {
       fetching = false;
@@ -549,7 +558,7 @@ oscope_contextPrototype.oscope = function(){
 
       canvas.datum({id: id, metric: metric_});
       canvas = canvas.node().getContext('2d');
-      canvas.translate(0.5,0.5);
+      //canvas.translate(0.5,0.5);
 
       if( metricIsArray ){
         numMetrics = metric_.length;
@@ -613,15 +622,16 @@ oscope_contextPrototype.oscope = function(){
         }
 
         if( ready ){
-          t0 = new Date( start - context.overlap()*step);
+          t0 = new Date( start - context.overlap());
         }
         else{
-          t0 = new Date( stop - context.size()*step );
+          t0 = new Date( stop - context.duration() );
         }
 
         var i0 = Math.round(context.scale(t0));
         var iStop = Math.round(context.scale(stop));
         var iStart = Math.round(context.scale(start));
+        var iFocus = Math.round(context.scale(stop-step));
 
         if( iStart > iStop ){
           canvas.clearRect(iStart, 0, context.size()- iStart, height);
@@ -666,9 +676,11 @@ oscope_contextPrototype.oscope = function(){
           }
 
           // Now get some data to plot
-          var ts = currMetric.getValuesInRange( t0, stop );
+          var ts = currMetric.getValuesInRange( t0, +stop + context.overlap() );
 
           if( ts.length > 0 ){
+
+            canvas.save();
 
             metricsReady[metricIdx] = true;
 
@@ -677,21 +689,39 @@ oscope_contextPrototype.oscope = function(){
                 y = scale(ts[tsIdx][1]+offsets[metricIdx]),
                 xLast = context.scale(ts[ts.length-1][0]);
 
-            canvas.beginPath();
             canvas.strokeStyle = colors_[metricIdx];
-            canvas.lineWidth = 2;
+            canvas.lineWidth = 3;
 
-            canvas.moveTo(x, y);
 
             // Find wraparound:
             if( x > xLast ){
+
+              // Set the clip path to the limit
+              canvas.save();
+              canvas.beginPath();
+              canvas.rect( Math.floor(x), 0, width-Math.floor(x), height);
+              canvas.clip();
+
+              canvas.beginPath();
+              canvas.moveTo(x, y);
               while( x > xLast ){
                 canvas.lineTo(x,y);
                 incrementTsIdx();
               }
+              canvas.restore();
 
               canvas.moveTo(x,y);
+
             }
+
+            // Set the clip path up to the stop line:
+            canvas.save();
+            canvas.beginPath();
+            canvas.rect( Math.floor(x), 0, iFocus - Math.floor(x), height );
+            canvas.clip();
+
+            canvas.beginPath();
+            canvas.moveTo(x, y);
 
             incrementTsIdx();
 
@@ -703,6 +733,7 @@ oscope_contextPrototype.oscope = function(){
             canvas.stroke();
 
           }
+          canvas.restore();
         }
 
         ready = !metricsReady.some( function(d){ return !d; } );

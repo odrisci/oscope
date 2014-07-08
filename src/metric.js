@@ -56,6 +56,7 @@ oscope_contextPrototype.metric = function(request, name) {
       stop,
       step = context.step(),
       size = context.size(),
+      duration = context.duration(),
       values = new ts.timeSeries(),
       event = d3.dispatch("change"),
       listening = 0,
@@ -63,10 +64,10 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    var steps = Math.min(size, Math.round((start1 - start) / step));
+    var steps = Math.min(Math.floor(duration/step), Math.round((start1 - start) / step));
     if (!steps || fetching) return; // already fetched, or fetching!
     fetching = true;
-    steps = Math.min(size, steps + oscope_metricOverlap);
+    steps = Math.min(Math.floor(duration/step), steps + oscope_metricOverlap);
     var start0 = new Date(stop - steps * step);
     request(start0, stop, step, function(error, data) {
       fetching = false;

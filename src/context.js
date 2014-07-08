@@ -14,23 +14,22 @@ oscope.context = function() {
   var context = new oscope_context(),
       step = 1e4, // ten seconds, in milliseconds
       size = 1440, // four hours at ten seconds, in pixels
+      duration = size*step, // duration of the window in milliseconds
       start0, stop0, // the start and stop for the previous change event
       start1, stop1, // the start and stop for the next prepare event
-      tleft,         // time at the left hand edge of the scale
       serverDelay = 5e3,
       clientDelay = 5e3,
       event = d3.dispatch("prepare", "beforechange", "change", "focus"),
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
       timeout,
       focus,
-      overlap = oscope_metricOverlap;
-
+      overlap = oscope_metricOverlap * step;
   function update() {
     var now = Date.now();
-    stop0 = new Date(Math.floor((now - serverDelay - clientDelay) / step) * step);
-    start0 = new Date(stop0 - size * step);
-    stop1 = new Date(Math.floor((now - serverDelay) / step) * step);
-    start1 = new Date(stop1 - size * step);
+    stop0 = new Date(now - serverDelay - clientDelay);
+    start0 = new Date(stop0 - duration);
+    stop1 = new Date(now - serverDelay);
+    start1 = new Date(stop1 - duration);
 
     scale.domain([start0,stop0]);
     scale.nice();
@@ -49,11 +48,12 @@ oscope.context = function() {
     if (delay < clientDelay) delay += step;
 
     timeout = setTimeout(function prepare() {
-      stop1 = new Date(Math.floor((Date.now() - serverDelay) / step) * step);
-      start1 = new Date(stop1 - size * step);
+      stop1 = new Date(Date.now() - serverDelay - overlap);
+      start1 = new Date(stop1 - duration);
+      var dataStop = new Date( +stop1 + overlap );
 
 
-      event.prepare.call(context, start1, stop1);
+      event.prepare.call(context, start1, dataStop);
 
       setTimeout(function() {
         scale.domain([start0 = start1, stop0 = stop1]);
@@ -87,6 +87,14 @@ oscope.context = function() {
   context.size = function(_) {
     if (!arguments.length) return size;
     scale.range([0, size = +_]);
+    return update();
+  };
+
+  // Set or get the context size (the count of metric values).
+  // Defaults to 1440 (four hours at ten seconds).
+  context.duration = function(_) {
+    if (!arguments.length) return duration;
+    duration = _;
     return update();
   };
 
