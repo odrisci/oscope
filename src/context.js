@@ -59,7 +59,7 @@ oscope.context = function() {
         scale.domain([start0 = start1, stop0 = stop1]);
         event.beforechange.call(context, start1, stop1);
         event.change.call(context, start1, stop1);
-        event.focus.call(context, focus ? focus : Math.round( context.scale(stop1-step) ) );
+        event.focus.call(context, focus ? focus : Math.floor( context.scale(stop1-step) ) );
       }, clientDelay);
 
       timeout = setTimeout(prepare, step);
