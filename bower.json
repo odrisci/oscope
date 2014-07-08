@@ -1,0 +1,30 @@
+{
+  "name": "oscope",
+  "main": "oscope.js",
+  "version": "1.6.0",
+  "homepage": "https://github.com/odrisci/oscope",
+  "authors": [
+    "Cillian O'Driscoll <cillian.odriscoll@gmail.com>"
+  ],
+  "description": "Oscilloscope-like time-series visualisation",
+  "moduleType": [
+    "es6",
+    "node"
+  ],
+  "keywords": [
+    "oscilloscope",
+    "time",
+    "series",
+    "real",
+    "time"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
