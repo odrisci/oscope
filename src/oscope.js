@@ -100,11 +100,18 @@ oscope_contextPrototype.oscope = function(){
 
 
         // Erase old data
+        var t0;
         if( !isFinite(start) ){
           start = start1;
         }
 
-        var t0 = new Date( start - context.overlap()*step);
+        if( ready ){
+          t0 = new Date( start - context.overlap()*step);
+        }
+        else{
+          t0 = new Date( stop - context.size()*step );
+        }
+
         var i0 = Math.round(context.scale(t0));
         var iStop = Math.round(context.scale(stop));
         var iStart = Math.round(context.scale(start));
@@ -114,7 +121,7 @@ oscope_contextPrototype.oscope = function(){
           iStart = 0;
         }
 
-        canvas.clearRect(iStart, 0, iStop - iStart + barWidth, height );
+        canvas.clearRect(iStart - 1, 0, iStop - iStart + barWidth + 1, height );
 
         // Where to start the blank bar on the next go around
         start = stop;
@@ -132,6 +139,9 @@ oscope_contextPrototype.oscope = function(){
         };
 
 
+        // Only declare the data ready when all metrics are ready:
+        var metricsReady = [];
+
         for( metricIdx = 0; metricIdx < numMetrics; ++metricIdx ){
 
           if( metricIsArray ){
@@ -144,12 +154,16 @@ oscope_contextPrototype.oscope = function(){
             currMetric = metric_;
           }
 
+          if( !ready ){
+            metricsReady[metricIdx] = false;
+          }
+
           // Now get some data to plot
           var ts = currMetric.getValuesInRange( t0, stop );
 
           if( ts.length > 0 ){
 
-            ready = true;
+            metricsReady[metricIdx] = true;
 
             var tsIdx = 0;
             var x = context.scale(ts[tsIdx][0]),
@@ -183,6 +197,8 @@ oscope_contextPrototype.oscope = function(){
 
           }
         }
+
+        ready = !metricsReady.some( function(d){ return !d; } );
 
         canvas.restore();
       }
