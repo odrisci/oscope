@@ -35,7 +35,7 @@ oscope.modularTimeScale = function(){
     }
 
     while( stop <= tleft_ ){
-      tleft_ -= duration;
+      tleft_ -= duration_;
     }
 
     lscale_.domain([tleft_,+tleft_+duration_]);
