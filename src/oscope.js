@@ -4,7 +4,7 @@ oscope_contextPrototype.oscope = function(){
       buffer = document.createElement('canvas'),
       width = buffer.width = context.size(),
       height = buffer.height = 30,
-      scale = d3.scale.linear().interpolate(d3.interpolateRound),
+      scale = d3.scale.linear(),
       metric = oscope_identity,
       extent = null,
       title = oscope_identity,
@@ -14,11 +14,9 @@ oscope_contextPrototype.oscope = function(){
 
   function oscope(selection) {
 
-    selection
-      .on('mousemove.oscope', function() { context.focus(Math.round(d3.mouse(this)[0])); })
-      .on('mouseout.oscope', function() { context.focus(null); } );
-
     selection.append('canvas')
+      .on('mousemove.oscope', function() { context.focus(Math.round(d3.mouse(this)[0])); })
+      .on('mouseout.oscope', function() { context.focus(null); } )
       .attr('width', width)
       .attr('height', height);
 
@@ -31,6 +29,8 @@ oscope_contextPrototype.oscope = function(){
           start = -Infinity,
           step = context.step(),
           canvas = d3.select(that).select('canvas'),
+          ctx0 = buffer.getContext( '2d' ),
+          ctx,
           span,
           max_,
           ready,
@@ -41,8 +41,7 @@ oscope_contextPrototype.oscope = function(){
           metricIsArray = (metric_ instanceof Array);
 
       canvas.datum({id: id, metric: metric_});
-      canvas = canvas.node().getContext('2d');
-      //canvas.translate(0.5,0.5);
+      ctx = canvas.node().getContext('2d');
 
       if( metricIsArray ){
         numMetrics = metric_.length;
@@ -63,25 +62,32 @@ oscope_contextPrototype.oscope = function(){
       scale.range([height,0]); // note inversion of canvas y-axis
 
 
-      d3.select(that).selectAll('.title')
+      span = d3.select(that).selectAll('.title')
         .data( metricIsArray ? metric_ : [metric_] )
         .enter()
           .append('span')
             .attr('class', 'title')
-            .text(title)
-            .style('top',function(d,i){ return scale( offsets[i] ) - 17 + 'px'; } );
+            .text(title);
+
+      //if( metricIsArray ){
+        span.style('top',function(d,i){
+          return +canvas.style('top').replace(/px/g, '') + scale( offsets[i] ) - 17 + 'px'; } );
+     // }
 
       span = d3.select(that).selectAll('.value')
         .data( focusValue )
         .enter()
           .append('span')
             .attr('class', 'value')
-            .style('top', function(d,i){ return scale( offsets[i] ) - 17 + 'px'; } )
             .text(function(d){ return isNaN(d) ? null : format; });
+
+      //if( metricIsArray ){
+        span.style('top', function(d,i){
+          return scale( offsets[i] ) - 17 + 'px'; } );
+      //}
 
 
       function change(start1, stop){
-        canvas.save();
 
         // Compute the new extent and ready flag
         var extent;
@@ -109,35 +115,41 @@ oscope_contextPrototype.oscope = function(){
           t0 = new Date( start - context.overlap());
         }
         else{
-          t0 = new Date( stop - context.duration() );
+          t0 = new Date( stop - context.duration() + context.overlap() );
         }
 
-        var i0 = Math.round(context.scale(t0));
         var iStop = Math.round(context.scale(stop));
-        var iStart = Math.round(context.scale(start));
-        var iFocus = Math.round(context.scale(stop-step));
+        var iStart = Math.round( context.scale(start) );
+        var iFocus = context.scale(stop);
 
-        if( iStart > iStop ){
-          canvas.clearRect(iStart, 0, context.size()- iStart, height);
-          iStart = 0;
-        }
-
-        canvas.clearRect(iStart - 1, 0, iStop - iStart + barWidth + 1, height );
 
         // Where to start the blank bar on the next go around
         start = stop;
 
         // Handle the cases of array of metrics or a single metric:
         var metricIdx = 0,
-            currMetric;
+            currMetric,
+            xPrev, yPrev;
 
         var incrementTsIdx = function(){
+          xPrev = x; yPrev = y;
           tsIdx++;
           if( tsIdx < ts.length ){
-            x = Math.round( context.scale(ts[tsIdx][0]) );
-            y = Math.round( scale(ts[tsIdx][1]+offsets[metricIdx]) );
+            x = //Math.round(
+                  context.scale(ts[tsIdx][0]);
+                //);
+            y = //Math.round(
+                  scale(ts[tsIdx][1]+offsets[metricIdx]);
+                //);
           }
         };
+
+        // Setup the buffer context:
+        ctx0.save();
+        ctx0.clearRect(0,0,width,height);
+
+        var canvasUpdated = false;
+
 
 
         // Only declare the data ready when all metrics are ready:
@@ -160,11 +172,12 @@ oscope_contextPrototype.oscope = function(){
           }
 
           // Now get some data to plot
-          var ts = currMetric.getValuesInRange( t0, +stop + context.overlap() );
+          var ts = currMetric.getValuesInRange( t0, +stop + context.overlap() ),
+              lastTime = [];
 
           if( ts.length > 0 ){
 
-            canvas.save();
+            ctx0.save();
 
             metricsReady[metricIdx] = true;
 
@@ -173,56 +186,114 @@ oscope_contextPrototype.oscope = function(){
                 y = scale(ts[tsIdx][1]+offsets[metricIdx]),
                 xLast = context.scale(ts[ts.length-1][0]);
 
-            canvas.strokeStyle = colors_[metricIdx];
-            canvas.lineWidth = 3;
-
+            ctx0.strokeStyle = colors_[metricIdx];
+            ctx0.lineWidth = 3;
+            //ctx0.translate( ctx0.lineWidth/2, ctx0.lineWidth/2);
 
             // Find wraparound:
             if( x > xLast ){
 
               // Set the clip path to the limit
-              canvas.save();
-              canvas.beginPath();
-              canvas.rect( Math.floor(x), 0, width-Math.floor(x), height);
-              canvas.clip();
+              ctx0.save();
+              /*ctx0.beginPath();
+              ctx0.rect( Math.floor(x), 0, width-Math.floor(x), height);
 
-              canvas.beginPath();
-              canvas.moveTo(x, y);
+              ctx0.clip();*/
+
+              ctx0.beginPath();
+              ctx0.moveTo(x, y);
+
+              incrementTsIdx();
+
               while( x > xLast ){
-                canvas.lineTo(x,y);
+                ctx0.lineTo(x,y);
+                /*ctx.bezierCurveTo(
+                  Math.round( (xPrev + x )/2 ), yPrev,
+                  Math.round( (xPrev + x )/2 ), y,
+                  x, y );*/
                 incrementTsIdx();
               }
-              canvas.restore();
+              // Plot one point past the edge of the current canvas
+              x += context.size();
+              ctx0.lineTo(x,y);
+              canvasUpdated = true;
+              ctx0.stroke();
+              ctx0.closePath();
 
-              canvas.moveTo(x,y);
+              ctx0.closePath();
+              ctx0.restore();
+
+              // Go back to the previous point so that we have one point
+              // off canvas when we return to the left hand edge.
+              x = xPrev - context.size();
+              y = yPrev;
+
+              ctx0.moveTo(x,y);
 
             }
 
             // Set the clip path up to the stop line:
-            canvas.save();
-            canvas.beginPath();
-            canvas.rect( Math.floor(x), 0, iFocus - Math.floor(x), height );
-            canvas.clip();
+            ctx0.save();
+            /*ctx0.beginPath();
+            ctx0.rect( iStart-1, 0, iFocus - iStart + 2, height );
+            //ctx.rect( 0, 0, iFocus, height );
 
-            canvas.beginPath();
-            canvas.moveTo(x, y);
+            ctx0.clip();*/
+
+            ctx0.beginPath();
+            ctx0.moveTo(x, y);
 
             incrementTsIdx();
 
             while( tsIdx < ts.length ){
-              canvas.lineTo(x,y);
+              ctx0.lineTo(x,y);
+              /*ctx.bezierCurveTo(
+                Math.round( (xPrev + x )/2 ), yPrev,
+                Math.round( (xPrev + x )/2 ), y,
+                x, y );*/
               incrementTsIdx();
+              canvasUpdated = true;
             }
 
-            canvas.stroke();
+            ctx0.stroke();
+            ctx0.closePath();
+            ctx0.closePath();
+            //ctx0.translate(-ctx0.lineWidth/2,-ctx0.lineWidth/2);
+            ctx0.restore();
+
+            // Store the last time value plotted for this metric:
+            tsIdx = ts.length-1;
+            while( tsIdx > 0 && ts[tsIdx][0] >= stop ){
+              --tsIdx;
+            }
+            lastTime[metricIdx] = ts[tsIdx][0];
 
           }
-          canvas.restore();
+          ctx0.restore();
         }
 
         ready = !metricsReady.some( function(d){ return !d; } );
+        //start = Math.min.apply( null, lastTime );
+        start = stop;
 
-        canvas.restore();
+        // Setup the copy to the main canvas:
+        ctx.save();
+        if( iStart > iStop ){
+          ctx.clearRect(iStart, 0, context.size()- iStart, height);
+          if( canvasUpdated && iStart < context.size() ){
+            ctx.drawImage( ctx0.canvas, iStart, 0, context.size() - iStart, height,
+                         iStart, 0, context.size() - iStart, height );
+          }
+          iStart = 0;
+        }
+
+        ctx.clearRect(iStart, 0, iStop - iStart + barWidth + 1, height );
+        if( canvasUpdated && iStop > iStart ){
+          ctx.drawImage(ctx0.canvas, iStart, 0, iStop - iStart, height,
+                      iStart, 0, iStop - iStart, height );
+        }
+
+        ctx.restore();
       }
 
       function focus(i){
@@ -287,7 +358,7 @@ oscope_contextPrototype.oscope = function(){
 
   oscope.height = function(_) {
     if(!arguments.length) return height;
-    height = _;
+    height = buffer.height = _;
     return oscope;
   };
 
