@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2014-07-14 
+/*! oscope v1.6.0 - 2014-07-21 
  * License:  */
 'use strict';
 (function(exports){
@@ -664,7 +664,8 @@ oscope_contextPrototype.oscope = function(){
         ctx0.save();
         ctx0.clearRect(0,0,width,height);
 
-        var canvasUpdated = false;
+        var canvasUpdated = false,
+            wrapAround = false;
 
 
 
@@ -728,6 +729,7 @@ oscope_contextPrototype.oscope = function(){
                   Math.round( (xPrev + x )/2 ), y,
                   x, y );*/
                 incrementTsIdx();
+                wrapAround = true;
               }
               // Plot one point past the edge of the current canvas
               x += context.size();
@@ -794,7 +796,7 @@ oscope_contextPrototype.oscope = function(){
 
         // Setup the copy to the main canvas:
         ctx.save();
-        if( iStart > iStop ){
+        if( wrapAround  && iStart >= iStop ){
           ctx.clearRect(iStart, 0, context.size()- iStart, height);
           if( canvasUpdated && iStart < context.size() ){
             ctx.drawImage( ctx0.canvas, iStart, 0, context.size() - iStart, height,
