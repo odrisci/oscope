@@ -32,7 +32,7 @@ module.exports = function (grunt) {
     'src/oscope.js',
     'src/comparison.js',
     'src/axis.js',
-    'src/rule.js' 
+    'src/rule.js'
     ];
   var specFiles = 'test/spec/**/*.js';
 
@@ -70,6 +70,40 @@ module.exports = function (grunt) {
       }
     },
 
+    // The actual grunt server settings
+    connect: {
+      options: {
+        port: 8000,
+        // Change this to '0.0.0.0' to access the server from outside.
+        hostname: '0.0.0.0',
+        livereload: 35729
+      },
+      livereload: {
+        options: {
+          open: true,
+          port: 8000,
+          base: [
+            '.tmp',
+            '.'
+          ]
+        }
+      },
+      test: {
+        options: {
+          port: 8001,
+          base: [
+            '.tmp',
+            'test',
+            '.'
+          ]
+        }
+      },
+      dist: {
+        options: {
+          base: '.'
+        }
+      }
+    },
 
     // Make sure code styles are up to par and there are no obvious mistakes
     jshint: {
@@ -117,8 +151,17 @@ module.exports = function (grunt) {
 
     watch: {
       src: {
-        files: [ srcFiles, 'Gruntfile.js' ],
+        files: [ srcFiles, 'Gruntfile.js', 'example/index.html', 'example/style.css' ],
         tasks: ['build', 'jshint'  ]
+      },
+      livereload: {
+        options: {
+          livereload: '<%= connect.options.livereload %>'
+        },
+        files: [
+          'example/{,*/}*.html',
+          'example/{,*/}*.css'
+        ]
       }
     },
 
@@ -132,6 +175,15 @@ module.exports = function (grunt) {
         configFile: 'karma.conf.js',
         singleRun: false
       }
+    },
+
+    concurrent: {
+      server: {
+        tasks: [ 'connect:livereload', 'watch' ],
+        options : {
+          logConcurrentOutput : true
+        }
+      }
     }
   });
 
@@ -143,11 +195,7 @@ module.exports = function (grunt) {
 
     grunt.task.run([
       'clean:server',
-      'bowerInstall',
-      'concurrent:server',
-      'autoprefixer',
-      'connect:livereload',
-      'watch'
+      'concurrent:server'
     ]);
   });
 
