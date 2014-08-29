@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2014-07-21 
+/*! oscope v1.6.0 - 2014-08-19 
  * License:  */
 'use strict';
 (function(exports){
@@ -276,12 +276,15 @@ oscope.context = function() {
   d3.select(window).on("keydown.context-" + ++oscope_id, function() {
     switch (!d3.event.metaKey && d3.event.keyCode) {
       case 37: // left
-        if (focus === null) focus = size - 1;
+        if (focus === null) focus = context.scale(stop1-step);
+        if( focus <= 0 ) focus += size;
         if (focus > 0) context.focus(--focus);
         break;
       case 39: // right
-        if (focus === null) focus = size - 2;
-        if (focus < size - 1) context.focus(++focus);
+        if (focus === null) focus = context.scale(stop1-step)-1;
+        //if (focus < size - 1) context.focus(++focus);
+        ++focus;
+        if( focus >= size ) focus -= size;
         break;
       default: return;
     }
@@ -623,9 +626,6 @@ oscope_contextPrototype.oscope = function(){
 
         // Erase old data
         var t0;
-        if( !isFinite(start) ){
-          start = start1;
-        }
 
         if( ready ){
           t0 = new Date( start - context.overlap());
@@ -634,13 +634,19 @@ oscope_contextPrototype.oscope = function(){
           t0 = new Date( stop - context.duration() + context.overlap() );
         }
 
-        var iStop = Math.round(context.scale(stop));
-        var iStart = Math.round( context.scale(start) );
+        if( !isFinite(start) ){
+          start = t0;
+        }
+
+        var xStop = (context.scale(stop));
+        var xStart = ( context.scale(start) );
         var iFocus = context.scale(stop);
 
+        var iStart = Math.round( xStart ),
+            iStop = Math.round( xStop ),
+            i0 = Math.round( context.scale(t0) );
 
-        // Where to start the blank bar on the next go around
-        start = stop;
+
 
         // Handle the cases of array of metrics or a single metric:
         var metricIdx = 0,
@@ -689,7 +695,7 @@ oscope_contextPrototype.oscope = function(){
           }
 
           // Now get some data to plot
-          var ts = currMetric.getValuesInRange( t0, +stop + context.overlap() ),
+          var ts = currMetric.getValuesInRange( t0-context.overlap(), +stop + context.overlap() ),
               lastTime = [];
 
           if( ts.length > 0 ){
@@ -729,6 +735,10 @@ oscope_contextPrototype.oscope = function(){
                   Math.round( (xPrev + x )/2 ), y,
                   x, y );*/
                 incrementTsIdx();
+                //wrapAround = true;
+              }
+
+              if( context.scale.invert( xPrev ) > t0 ){
                 wrapAround = true;
               }
               // Plot one point past the edge of the current canvas
@@ -747,7 +757,6 @@ oscope_contextPrototype.oscope = function(){
               y = yPrev;
 
               ctx0.moveTo(x,y);
-
             }
 
             // Set the clip path up to the stop line:
@@ -796,20 +805,26 @@ oscope_contextPrototype.oscope = function(){
 
         // Setup the copy to the main canvas:
         ctx.save();
-        if( wrapAround  && iStart >= iStop ){
-          ctx.clearRect(iStart, 0, context.size()- iStart, height);
-          if( canvasUpdated && iStart < context.size() ){
-            ctx.drawImage( ctx0.canvas, iStart, 0, context.size() - iStart, height,
-                         iStart, 0, context.size() - iStart, height );
+        if( wrapAround ){
+          ctx.clearRect(i0, 0, context.size()- i0, height);
+          if( canvasUpdated && i0 < context.size() ){
+            ctx.drawImage( ctx0.canvas, i0, 0, context.size() - i0, height,
+                        i0, 0, context.size() - i0, height );
           }
-          iStart = 0;
         }
 
-        ctx.clearRect(iStart, 0, iStop - iStart + barWidth + 1, height );
-        if( canvasUpdated && iStop > iStart ){
-          ctx.drawImage(ctx0.canvas, iStart, 0, iStop - iStart, height,
-                      iStart, 0, iStop - iStart, height );
+        if( i0 > iStop ){
+          i0 = 0;
         }
+
+        ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
+        if( canvasUpdated && iStop > i0 ){
+          ctx.drawImage(ctx0.canvas, i0, 0, iStop - i0, height,
+                      i0, 0, iStop - i0, height );
+        }
+
+        // Where to start the blank bar on the next go around
+        start = stop;
 
         ctx.restore();
       }
