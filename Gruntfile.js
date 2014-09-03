@@ -29,7 +29,9 @@ module.exports = function (grunt) {
     'src/metric.js',
     'src/metric-constant.js',
     'src/metric-operator.js',
+    'src/metric-annotation.js',
     'src/oscope.js',
+    'src/annote.js',
     'src/comparison.js',
     'src/axis.js',
     'src/rule.js'

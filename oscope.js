@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2014-08-19 
+/*! oscope v1.6.0 - 2014-09-03 
  * License:  */
 'use strict';
 (function(exports){
@@ -517,6 +517,106 @@ oscope_metricPrototype.divide = oscope_metricOperator("/", function(left, right)
   return left / right;
 });
 
+function oscope_metricAnnotation( context ){
+  oscope_metric.call( this, context );
+}
+
+var oscope_metricAnnotationPrototype = oscope_metricAnnotation.prototype = Object.create(oscope_metric.prototype);
+
+oscope.metricAnnotation = oscope_metricAnnotation;
+
+oscope_contextPrototype.annotation = function(request, name) {
+  var context = this,
+      annotation = new oscope_metricAnnotation(context),
+      id = ".annotation-" + ++oscope_id,
+      listening = 0,
+      fetching,
+      event = d3.dispatch("change"),
+      values = [];
+
+  function prepare(start1, stop) {
+    if( fetching ) return;
+    fetching = true;
+
+    request( start1, stop, function( error, data ){
+      fetching = false;
+      if(error) return console.warn(error);
+      // Just keep growing the array
+      // we usually expect a relatively low number of annotations
+      values = data;
+      event.change.call(annotation, start1, stop);
+
+    });
+
+  }
+
+  function beforechange(start1, stop1){}
+
+  annotation.valueAt = function(i){
+    var t = context.scale.invert(i),
+        len = values.length;
+
+    for( var i = 0; i < len; ++i ){
+      if( values[i].startTime < t && values[i].endTime > t ){
+        return values[i];
+      }
+    }
+
+    return null;
+  };
+
+  annotation.getValuesInRange = function( t0, t1 ){
+    var len = values.length,
+        ret = [];
+
+    for( var i = 0; i < len; ++i ){
+      if( values[i].startTime < t1 && values[i].endTime > t0 ){
+        ret.push( values[i] );
+      }
+    }
+
+    return ret;
+  };
+
+  annotation.shift = function( offset ){
+    return context.annotation(oscope_metricShift(request, +offset));
+  };
+
+  annotation.on = function(type, listener){
+    if(!arguments.length) return event.on(type);
+
+    // If there are no listeners, then stop listening to the context,
+    // and avoid unnecessary fetches.
+    if (listener === null) {
+      if (event.on(type) != null && --listening == 0) {
+        context.on("prepare" + id, null).on("beforechange" + id, null);
+      }
+    } else {
+      if (event.on(type) == null && ++listening == 1) {
+        context.on("prepare" + id, prepare).on("beforechange" + id, beforechange);
+      }
+    }
+
+    event.on(type, listener);
+
+    // Notify the listener of the current start and stop time, as appropriate.
+    // This way, charts can display synchronous metrics immediately.
+    //if (listener !== null) {
+    //  if (/^change(\.|$)/.test(type)) listener.call(context, start, stop);
+    // }
+
+    return annotation;
+  };
+
+  if( arguments.length > 1 ) annotation.toString = function(){
+    return name;
+  };
+
+  return annotation;
+
+
+};
+
 
 oscope_contextPrototype.oscope = function(){
   var context = this,
@@ -932,6 +1032,206 @@ oscope_contextPrototype.oscope = function(){
   };
 
   return oscope;
+};
+
+oscope_contextPrototype.annote = function(){
+
+  var context = this,
+      height = 30,
+      metric = oscope_identity,
+      width = context.size();
+
+  function annote(selection){
+    selection.append( 'svg' )
+      .attr('width', width)
+      .attr('height', height)
+      .append( 'g' )
+        .on('mousemove.annote', function() {context.focus(Math.round(d3.mouse(this)[0])); })
+        .on('mouseout.annote', function() { context.focus(null); } );
+
+    selection.each( function(d,i){
+
+      var that=this,
+          id = ++oscope_id,
+          svg = d3.select(that).select('svg'),
+          metric_ = typeof metric === 'function' ? metric.call(that, d, i) : metric,
+          lhs, rhs,
+          defs = svg.append("defs");
+
+      // Store the id and the metrics for later removal:
+      svg.datum( { id: id, metric: metric_ } );
+
+      var g = svg.select( 'g' )
+        .attr( 'width', width )
+        .attr( 'height', height );
+
+      lhs = g.append( 'g' )
+              .attr( 'width', width )
+              .attr( 'height', height )
+              .attr( 'clip-path', 'url(#clipLHS)' )
+              .attr( 'class', 'annotations' );
+
+      rhs = g.append( 'g' )
+              .attr( 'width', width )
+              .attr( 'height', height )
+              .attr( 'clip-path', 'url(#clipRHS)' )
+              .attr( 'class', 'annotations' );
+
+
+
+
+      function change( start1, stop ){
+
+        var tleft = context.scale.invert(0),
+            lhsAnnotations = metric_.getValuesInRange(tleft, stop),
+            rhsAnnotations = metric_.getValuesInRange(start1, tleft),
+            lhsRects, rhsRects,
+            lhsLabels, rhsLabels,
+            lscale = d3.time.scale(),
+            rscale = d3.time.scale();
+
+        lscale.domain([tleft, stop]).range([0, context.scale(stop)] );
+        rscale.domain([start1, tleft]).range([context.scale(start1), width]);
+
+        // set up the clip paths:
+        var clipData = [
+          { id: "clipLHS",
+            x: 0,
+            width: context.scale(stop)
+          },
+          { id: "clipRHS",
+            x: context.scale(start1),
+            width: width - context.scale(start1)
+          } ];
+
+        var clipPaths = defs.selectAll("clipPath")
+          .data( clipData, function(d){ return d.id; } );
+
+        clipPaths
+          .select("rect")
+            .attr("x", function(d){ return d.x; } )
+            .attr("width", function(d){ return d.width; } );
+
+        clipPaths.enter()
+          .append( "clipPath" )
+            .attr( 'id', function(d){ return d.id; } )
+            .append('rect')
+              .attr( 'y', 0 )
+              .attr( 'height', height );
+
+
+
+        var getX = function( d, scale ){
+          return scale( d.startTime );
+        };
+
+        var getWidth = function( d, scale ){
+          return scale( d.endTime ) - scale( d.startTime );
+        };
+
+        lhs.datum( [lhsAnnotations] );
+        rhs.datum( [rhsAnnotations] );
+
+        lhsLabels = lhs.selectAll( "text" )
+                    .data(lhsAnnotations)
+                    .attr("x", function(d){ return Math.max( 0, getX(d,lscale) ); } );
+
+        rhsLabels = rhs.selectAll( "text" )
+                    .data(rhsAnnotations)
+                    .attr("x", function(d){ return Math.max( 0, getX(d,rscale) ); } );
+
+
+        lhsLabels.enter().append( "text" )
+          .text( function(d){ return d.shortText; } )
+          .attr('x', function(d){ return Math.max( 0, getX(d,lscale) );} )
+          .attr('y', height/2 )
+          .attr('dy', '0.5ex' )
+          .attr('text-anchor', 'start' );
+
+        rhsLabels.enter().append( "text" )
+          .text( function(d){ return d.shortText; } )
+          .attr('x', function(d){ return Math.max( 0, getX(d,rscale) );} )
+          .attr('y', height/2 )
+          .attr('dy', '0.5ex' )
+          .attr('text-anchor', 'start' );
+
+        lhsLabels.exit().remove();
+        rhsLabels.exit().remove();
+
+        lhsRects = lhs.selectAll( "rect" )
+                    .data(lhsAnnotations)
+                    .attr("x", function(d){ return getX(d,lscale); } )
+                    .attr("width", function(d){ return getWidth(d,lscale); } );
+
+        rhsRects = rhs.selectAll( "rect" )
+                    .data(rhsAnnotations)
+                    .attr("x", function(d){ return getX(d,rscale); } )
+                    .attr("width", function(d){ return getWidth(d,rscale); } );
+
+
+        lhsRects.enter().append( "rect" )
+          .attr('x', function(d){ return getX(d,lscale);} )
+          .attr('y', 0 )
+          .attr('width', function(d){ return getWidth(d,lscale); } )
+          .attr('height', height );
+
+        rhsRects.enter().append( "rect" )
+          .attr('x', function(d){ return getX(d,rscale);} )
+          .attr('y', 0 )
+          .attr('width', function(d){ return getWidth(d,rscale); } )
+          .attr('height', height );
+
+        lhsRects.exit().remove();
+        rhsRects.exit().remove();
+
+      }
+
+      // focus does nothing for now, but would like bring up a pop-up
+      // with the full text in it
+      function focus(){}
+
+      // update the chart when the context changes
+      context.on('change.annote-' + id, change );
+      context.on('focus.annote-' + id, focus );
+
+
+      metric_.on( 'change.annote-' + id, function( start, stop ){
+        change(start, stop);
+        focus();
+        metric_.on('change.annote-' + id, oscope_identity);
+      });
+
+
+    });
+
+  }
+
+  annote.remove = function(selection){
+
+    selection
+      .on('mousemove.annote', null )
+      .on('mouseout.annote', null );
+
+    selection.selectAll('svg')
+      .each(remove)
+      .remove();
+
+    function remove(d){
+      d.metric.on('change.annote-' + d.id, null );
+      context.on('change.annote-' + d.id, null );
+      context.on('focus.oscope-' + d.id, null );
+    }
+  };
+
+  annote.height = function(_){
+    if(!arguments.length) return height;
+    height = _;
+    return annote;
+  };
+
+
+
+  return annote;
 };
 
 oscope_contextPrototype.comparison = function() {
