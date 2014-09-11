@@ -77,7 +77,7 @@ oscope_contextPrototype.annote = function(){
             .attr("width", function(d){ return d.width; } );
 
         clipPaths.enter()
-          .append( "clipPath" )
+          .append( "svg:clipPath" )
             .attr( 'id', function(d){ return d.id; } )
             .append('rect')
               .attr( 'y', 0 )
