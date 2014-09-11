@@ -190,7 +190,7 @@ oscope_contextPrototype.oscope = function(){
                 y = scale(ts[tsIdx][1]+offsets[metricIdx]),
                 xLast = context.scale(ts[ts.length-1][0]);
 
-            ctx0.strokeStyle = colors_[metricIdx];
+            ctx0.strokeStyle = colors_[metricIdx % colors_.length];
             ctx0.lineWidth = 3;
             //ctx0.translate( ctx0.lineWidth/2, ctx0.lineWidth/2);
 
