@@ -23,6 +23,7 @@ oscope.context = function() {
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
       timeout,
       focus,
+      onepx = scale.invert(1) - scale.invert(0),
       overlap = oscope_metricOverlap * step;
   function update() {
     var now = Date.now();
@@ -43,6 +44,7 @@ oscope.context = function() {
 
     scale.domain([start0,stop0]);
     scale.nice();
+    onepx = scale.invert(1) - scale.invert(0);
 
     // If we're too late for the first prepare event, skip it.
     if (delay < clientDelay) delay += step;
@@ -59,7 +61,7 @@ oscope.context = function() {
         scale.domain([start0 = start1, stop0 = stop1]);
         event.beforechange.call(context, start1, stop1);
         event.change.call(context, start1, stop1);
-        event.focus.call(context, focus ? focus : context.scale(stop1-step) );
+        event.focus.call(context, focus ? focus : context.scale(stop1-onepx) );
       }, clientDelay);
 
       timeout = setTimeout(prepare, step);
@@ -150,12 +152,12 @@ oscope.context = function() {
   d3.select(window).on("keydown.context-" + ++oscope_id, function() {
     switch (!d3.event.metaKey && d3.event.keyCode) {
       case 37: // left
-        if (focus === null) focus = context.scale(stop1-step);
+        if (focus === null) focus = context.scale(stop1-onepx);
         if( focus <= 0 ) focus += size;
         if (focus > 0) context.focus(--focus);
         break;
       case 39: // right
-        if (focus === null) focus = context.scale(stop1-step)-1;
+        if (focus === null) focus = context.scale(stop1-onepx)-1;
         //if (focus < size - 1) context.focus(++focus);
         ++focus;
         if( focus >= size ) focus -= size;
