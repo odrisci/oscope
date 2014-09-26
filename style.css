@@ -7,12 +7,19 @@ body {
   margin: auto;
   margin-top: 40px;
   margin-bottom: 4em;
-  width: 960px;
+  width: 1030px;
 }
 
 #body {
   position: relative;
+  overflow: visible;
 }
+
+/*#example1 {
+  margin-left: 30px;
+  margin-bottom: 30px;
+  margin-top: 20px;
+}*/
 
 footer {
   font-size: small;
@@ -162,10 +169,16 @@ h1, h2 {
 
 .axis {
   font: 10px sans-serif;
+  overflow: visible;
+}
+
+.axis svg {
+  border: solid 1px #000;
 }
 
 .axis text {
   -webkit-transition: fill-opacity 250ms linear;
+  transition: fill-opacity 250ms linear;
 }
 
 .axis path {
@@ -177,28 +190,66 @@ h1, h2 {
   shape-rendering: crispEdges;
 }
 
-.horizon {
-  border-bottom: solid 1px #000;
-  overflow: hidden;
-  position: relative;
+.yaxis line {
+  stroke: red;
+  fill: none;
+  shape-rendering: crispEdges;
+  opacity : 0.5;
+  stroke-opacity : 0.7;
 }
 
-.horizon {
+.yaxis.grid {
+  stroke: red;
+  stroke-opacity: 1;
+  opacity : 0.7;
+}
+
+.yaxis.grid path {
+  stroke-width: 1px;
+}
+
+.yaxis.grid line {
+  stroke: brown;
+  stroke-opacity: 1;
+  opacity : 0.7;
+  width : 13px;
+}
+
+.yaxis path {
+  display: none;
+}
+
+.xgrid line {
+  stroke: rgba( 160, 160, 164, 0.5 );
+  shape-rendering: crispEdges;
+}
+
+.xgrid path {
+  display: none;
+}
+
+.rule .line {
+  margin-left: 50px;
+}
+
+.oscope {
   border-top: solid 1px #000;
   border-bottom: solid 1px #000;
+  position: relative;
+  margin-bottom: 10px;
 }
 
-.horizon + .horizon {
+.oscope + .oscope {
   border-top: none;
 }
 
-.horizon canvas {
+.oscope canvas {
   display: block;
+  position: absolute;
 }
 
-.horizon .title,
-.horizon .value {
-  bottom: 0;
+.oscope .title,
+.oscope .value {
   line-height: 30px;
   margin: 0 6px;
   position: absolute;
@@ -206,16 +257,85 @@ h1, h2 {
   white-space: nowrap;
 }
 
-.horizon .title {
-  left: 0;
+.oscope .title {
+  left: 0px;
+  text-align: right;
 }
 
-.horizon .value {
-  right: 0;
+.oscope .value {
+  right: 0px;
+}
+
+.annote svg{
+  border: solid 1px #000;
+}
+
+.annote rect{
+  fill: brown;
+  stroke: gray;
+  fill-opacity: 0.365;
 }
 
 .line {
   background: #000;
   opacity: .2;
   z-index: 2;
+}
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  font: 10px sans-serif;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  content: "\25BC";
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+  text-align: center;
+}
+
+
+/* Eastward tooltips */
+.d3-tip.e:after {
+  content: "\25C0";
+  margin: -4px 0 0 0;
+  top: 50%;
+  left: -8px;
+}
+
+/* Southward tooltips */
+.d3-tip.s:after {
+  content: "\25B2";
+  margin: 0 0 1px 0;
+  top: -10px;
+  left: 0;
+  text-align: center;
+}
+
+/* Westward tooltips */
+.d3-tip.w:after {
+  content: "\25B6";
+  margin: -4px 0 0 -1px;
+  top: 50%;
+  left: 100%;
 }
