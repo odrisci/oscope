@@ -42,6 +42,28 @@ oscope_contextPrototype.annote = function(){
               .attr( 'class', 'annotations' );
 
 
+      // Fix to work with Chrome: note chrome can't handle clipPath selection due to camelCase
+      // It will keep adding new clipPath elements to the svg and never update the values
+      // set up the clip paths:
+      var clipData = [
+        { id: "clipLHS",
+          x: 0,
+          width: width
+        },
+        { id: "clipRHS",
+          x: width,
+          width: 0
+        } ];
+
+      var clipPaths = defs.selectAll("clipPath")
+        .data( clipData, function(d){ return d.id; } );
+
+      clipPaths.enter()
+        .append( "svg:clipPath" )
+          .attr( 'id', function(d){ return d.id; } )
+          .append('rect')
+            .attr( 'y', 0 )
+            .attr( 'height', height );
 
 
       function change( start1, stop ){
@@ -58,7 +80,7 @@ oscope_contextPrototype.annote = function(){
         rscale.domain([start1, tleft]).range([context.scale(start1), width]);
 
         // set up the clip paths:
-        var clipData = [
+        clipData = [
           { id: "clipLHS",
             x: 0,
             width: context.scale(stop)
@@ -68,22 +90,12 @@ oscope_contextPrototype.annote = function(){
             width: width - context.scale(start1)
           } ];
 
-        var clipPaths = defs.selectAll("clipPath")
-          .data( clipData, function(d){ return d.id; } );
+        clipPaths.data( clipData, function(d){ return d.id; } );
 
         clipPaths
           .select("rect")
             .attr("x", function(d){ return d.x; } )
             .attr("width", function(d){ return d.width; } );
-
-        clipPaths.enter()
-          .append( "svg:clipPath" )
-            .attr( 'id', function(d){ return d.id; } )
-            .append('rect')
-              .attr( 'y', 0 )
-              .attr( 'height', height );
-
-
 
         var getX = function( d, scale ){
           return scale( d.startTime );
