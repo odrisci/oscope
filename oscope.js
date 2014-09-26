@@ -1079,36 +1079,30 @@ oscope_contextPrototype.annote = function(){
               .attr( 'clip-path', 'url(#clipRHS)' )
               .attr( 'class', 'annotations' );
 
-        // set up the clip paths:
-        var clipData = [
-            { id: "clipLHS",
-            x: 0,
-            width: context.size()
-            },
-            { id: "clipRHS",
-            x: context.size(), 
-            width: 0 
-            } ];
 
-      var clipPathLHS = defs.append( "svg:clipPath" )
-                            .datum( clipData[0] )
-                            .attr( 'id', function(d) {return d.id;} ),
-          clipPathRHS = defs.append( "svg:clipPath" )
-                            .datum( clipData[1] )
-                            .attr( 'id', function(d) {return d.id;} );
-                        
-          clipPathLHS.append( 'rect' )
-                        .attr( 'y', 0 )
-                        .attr( 'x', function(d) {return d.x;} )
-                        .attr( 'height', height )
-                        .attr( 'width', function(d) {return d.width;} );
-          clipPathRHS.append( 'rect' )
-                        .attr( 'y', 0 )
-                        .attr( 'x', function(d) {return d.x;} )
-                        .attr( 'height', height )
-                        .attr( 'width', function(d) {return d.width;} );
+      // Fix to work with Chrome: note chrome can't handle clipPath selection due to camelCase
+      // It will keep adding new clipPath elements to the svg and never update the values
+      // set up the clip paths:
+      var clipData = [
+        { id: "clipLHS",
+          x: 0,
+          width: width
+        },
+        { id: "clipRHS",
+          x: width,
+          width: 0
+        } ];
 
-        
+      var clipPaths = defs.selectAll("clipPath")
+        .data( clipData, function(d){ return d.id; } );
+
+      clipPaths.enter()
+        .append( "svg:clipPath" )
+          .attr( 'id', function(d){ return d.id; } )
+          .append('rect')
+            .attr( 'y', 0 )
+            .attr( 'height', height );
+
 
       function change( start1, stop ){
 
@@ -1123,25 +1117,23 @@ oscope_contextPrototype.annote = function(){
         lscale.domain([tleft, stop]).range([0, context.scale(stop)] );
         rscale.domain([start1, tleft]).range([context.scale(start1), width]);
 
+        // set up the clip paths:
         clipData = [
-            { id: "clipLHS",
+          { id: "clipLHS",
             x: 0,
             width: context.scale(stop)
-            },
-            { id: "clipRHS",
+          },
+          { id: "clipRHS",
             x: context.scale(start1),
             width: width - context.scale(start1)
-            } ];
+          } ];
 
-        clipPathLHS.datum( clipData[0] )
-            .select( 'rect' )
-                .attr( 'x', function(d) {return d.x;} )
-                .attr( 'width', function(d) {return d.width;} );
-            
-        clipPathRHS.datum( clipData[1] )
-            .select( 'rect' )
-                .attr( 'x', function(d) {return d.x;} )
-                .attr( 'width', function(d) {return d.width;} );
+        clipPaths.data( clipData, function(d){ return d.id; } );
+
+        clipPaths
+          .select("rect")
+            .attr("x", function(d){ return d.x; } )
+            .attr("width", function(d){ return d.width; } );
 
         var getX = function( d, scale ){
           return scale( d.startTime );
