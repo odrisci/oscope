@@ -769,14 +769,14 @@ oscope_contextPrototype.oscope = function(){
         // Erase old data
         var t0;
 
-        if( ready ){
+        if( ready && start < stop ){
           t0 = new Date( start - context.overlap());
         }
         else{
           t0 = new Date( stop - context.duration() + context.overlap() );
         }
 
-        if( !isFinite(start) ){
+        if( !isFinite(start) || start > stop ){
           start = t0;
           ctx.clearRect(0, 0, width, height);
         }
