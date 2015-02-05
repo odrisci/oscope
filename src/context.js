@@ -19,7 +19,7 @@ oscope.context = function() {
       start1, stop1, // the start and stop for the next prepare event
       serverDelay = 5e3,
       clientDelay = 5e3,
-      event = d3.dispatch("prepare", "beforechange", "change", "focus"),
+      event = d3.dispatch("prepare", "beforechange", "change", "focus", "update"),
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
       type = 'sweeping',
       timeout,
@@ -38,6 +38,8 @@ oscope.context = function() {
     if( type == 'sweeping' ){
       scale.nice();
     }
+
+    event.update.call( context, start1, stop1 );
 
     return context;
   }
@@ -167,6 +169,7 @@ oscope.context = function() {
       if (/^beforechange(\.|$)/.test(type)) listener.call(context, start0, stop0);
       if (/^change(\.|$)/.test(type)) listener.call(context, start0, stop0);
       if (/^focus(\.|$)/.test(type)) listener.call(context, focus);
+      if (/^update(\.|$)/.test(type)) listener.call(context, update, start1, stop1 );
     }
 
     return context;

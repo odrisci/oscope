@@ -117,7 +117,9 @@ oscope_contextPrototype.oscope = function(){
 
         if( !isFinite(start) ){
           start = t0;
+          ctx.clearRect(0, 0, width, height);
         }
+
 
         var xStop = (context.scale(stop));
         var xStart = ( context.scale(start) );
@@ -339,9 +341,15 @@ oscope_contextPrototype.oscope = function(){
             .text(function(d){ return isNaN(d) ? null : format(d); });
       }
 
+      function update(start1, stop){
+        start = -Infinity;
+        ready = false;
+      }
+
       // update the chart when the context changes
       context.on('change.oscope-' + id, change);
       context.on('focus.oscope-' + id, focus);
+      context.on('update.oscope-' + id, update);
 
       // Display the first metric chagne immediately,
       // but defer subsequent updates to the canvas change
@@ -382,6 +390,7 @@ oscope_contextPrototype.oscope = function(){
       d.metric.on('change.oscope-' + d.id, null);
       context.on('change.oscope-' + d.id, null);
       context.on('focus.oscope-' + d.id, null);
+      context.on('update.oscope-' + d.id, null);
     }
   };
 
