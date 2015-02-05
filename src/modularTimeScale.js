@@ -5,9 +5,13 @@ oscope.modularTimeScale = function(){
       rscale_ = d3.time.scale(), // The scale for values 'right' of now
                                  // essentially these are times earlier than tleft_
       scale_ = d3.time.scale(), // The nominal scale with the correct domain and range
+      isModular_ = true,
       duration_;
 
   function scale( x ){
+    if( !isModular_ ){
+      return scale_(x);
+    }
     if( x < tleft_ ){
       return rscale_(x);
     }
@@ -16,6 +20,9 @@ oscope.modularTimeScale = function(){
   }
 
   scale.invert = function( y ){
+    if( !isModular_ ){
+      return scale_.invert(y);
+    }
     if( y < icurr_ ){
       return lscale_.invert(y);
     }
@@ -79,10 +86,17 @@ oscope.modularTimeScale = function(){
     return scale.domain( domain_ );
   };
 
+  scale.isModular = function(_){
+    if(!arguments.length) return scale.isModular_;
+    isModular_ = _;
+    return scale.rescale();
+  };
+
   scale.copy = function(){
     var ret = oscope.modularTimeScale()
       .range( scale.range() )
       .domain( scale.domain() )
+      .isModular( isModular_ )
       .tleft( tleft_ );
 
     return ret;

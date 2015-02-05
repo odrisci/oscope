@@ -21,6 +21,7 @@ oscope.context = function() {
       clientDelay = 5e3,
       event = d3.dispatch("prepare", "beforechange", "change", "focus"),
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
+      type = 'sweeping',
       timeout,
       focus,
       onepx = scale.invert(1) - scale.invert(0),
@@ -33,7 +34,10 @@ oscope.context = function() {
     start1 = new Date(stop1 - duration);
 
     scale.domain([start0,stop0]);
-    scale.nice();
+
+    if( type == 'sweeping' ){
+      scale.nice();
+    }
 
     return context;
   }
@@ -43,7 +47,9 @@ oscope.context = function() {
     var delay = +stop1 + serverDelay - Date.now();
 
     scale.domain([start0,stop0]);
-    scale.nice();
+    if( type == 'sweeping' ){
+      scale.nice();
+    }
     onepx = scale.invert(1) - scale.invert(0);
 
     // If we're too late for the first prepare event, skip it.
@@ -127,6 +133,23 @@ oscope.context = function() {
   context.overlap = function(_){
     if(!arguments.length) return overlap;
     overlap = _;
+    return context;
+  };
+
+  // set the type of the context: 'sweeping' or 'scrolling'
+  context.type = function(_){
+    if(!arguments.length) return type;
+    if( _ != type ){
+      if( _ == 'sweeping' ){
+        scale.isModular( true );
+        type = _;
+      }
+      else if( _ == 'scrolling' ){
+        scale.isModular( false );
+        type = _;
+      }
+      return update();
+    }
     return context;
   };
 

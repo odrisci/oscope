@@ -127,6 +127,25 @@ oscope_contextPrototype.oscope = function(){
             iStop = Math.round( xStop ),
             i0 = Math.round( context.scale(t0) );
 
+        // Setup the buffer context:
+        ctx0.save();
+        ctx0.clearRect(0,0,width,height);
+
+
+        // Handle the case of a scrolling context first:
+        if( context.type() == 'scrolling' ){
+          var dx = context.scale( stop ) - context.scale( start );
+          var di = Math.round( dx );
+
+          // if the x delta is less than the width then we copy
+          if( di < width ){
+            ctx0.clearRect( 0, 0, width, height );
+            ctx0.drawImage( ctx.canvas, di, 0, i0,  height, 0, 0, i0, height );
+            ctx.clearRect( 0, 0, width, height );
+            ctx.drawImage( ctx0.canvas, 0, 0 );
+          }
+        }
+
 
 
         // Handle the cases of array of metrics or a single metric:
@@ -146,10 +165,6 @@ oscope_contextPrototype.oscope = function(){
                 //);
           }
         };
-
-        // Setup the buffer context:
-        ctx0.save();
-        ctx0.clearRect(0,0,width,height);
 
         var canvasUpdated = false,
             wrapAround = false;
