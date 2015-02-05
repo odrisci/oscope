@@ -31,6 +31,13 @@ oscope_contextPrototype.oscope = function(){
           canvas = d3.select(that).select('canvas'),
           ctx0 = buffer.getContext( '2d' ),
           ctx,
+          devicePixelRatio = window.devicePixelRatio || 1,
+          backingStoreRatio = ctx0.webkitBackingStorePixelRatio ||
+                              ctx0.mozBackingStorePixelRatio ||
+                              ctx0.msBackingStorePixelRatio ||
+                              ctx0.oBackingStorePixelRatio ||
+                              ctx0.backingStorePixelRatio || 1,
+          ratio = devicePixelRatio / backingStoreRatio,
           span,
           max_,
           ready,
@@ -41,7 +48,14 @@ oscope_contextPrototype.oscope = function(){
           metricIsArray = (metric_ instanceof Array);
 
       canvas.datum({id: id, metric: metric_});
+      canvas.width = width*ratio;
+      canvas.height = height * ratio;
+      buffer.width = width*ratio;
+      buffer.height = height * ratio;
+
       ctx = canvas.node().getContext('2d');
+      ctx.scale( ratio, ratio );
+      ctx0.scale( ratio, ratio );
 
       if( metricIsArray ){
         numMetrics = metric_.length;
