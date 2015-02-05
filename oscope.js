@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2014-09-26 
+/*! oscope v1.6.0 - 2015-02-05 
  * License:  */
 'use strict';
 (function(exports){
@@ -33,9 +33,13 @@ oscope.modularTimeScale = function(){
       rscale_ = d3.time.scale(), // The scale for values 'right' of now
                                  // essentially these are times earlier than tleft_
       scale_ = d3.time.scale(), // The nominal scale with the correct domain and range
+      isModular_ = true,
       duration_;
 
   function scale( x ){
+    if( !isModular_ ){
+      return scale_(x);
+    }
     if( x < tleft_ ){
       return rscale_(x);
     }
@@ -44,6 +48,9 @@ oscope.modularTimeScale = function(){
   }
 
   scale.invert = function( y ){
+    if( !isModular_ ){
+      return scale_.invert(y);
+    }
     if( y < icurr_ ){
       return lscale_.invert(y);
     }
@@ -107,10 +114,17 @@ oscope.modularTimeScale = function(){
     return scale.domain( domain_ );
   };
 
+  scale.isModular = function(_){
+    if(!arguments.length) return scale.isModular_;
+    isModular_ = _;
+    return scale.rescale();
+  };
+
   scale.copy = function(){
     var ret = oscope.modularTimeScale()
       .range( scale.range() )
       .domain( scale.domain() )
+      .isModular( isModular_ )
       .tleft( tleft_ );
 
     return ret;
@@ -145,8 +159,9 @@ oscope.context = function() {
       start1, stop1, // the start and stop for the next prepare event
       serverDelay = 5e3,
       clientDelay = 5e3,
-      event = d3.dispatch("prepare", "beforechange", "change", "focus"),
+      event = d3.dispatch("prepare", "beforechange", "change", "focus", "update"),
       scale = context.scale = oscope.modularTimeScale().range([0, size]),
+      type = 'sweeping',
       timeout,
       focus,
       onepx = scale.invert(1) - scale.invert(0),
@@ -159,7 +174,12 @@ oscope.context = function() {
     start1 = new Date(stop1 - duration);
 
     scale.domain([start0,stop0]);
-    scale.nice();
+
+    if( type == 'sweeping' ){
+      scale.nice();
+    }
+
+    event.update.call( context, start1, stop1 );
 
     return context;
   }
@@ -169,7 +189,9 @@ oscope.context = function() {
     var delay = +stop1 + serverDelay - Date.now();
 
     scale.domain([start0,stop0]);
-    scale.nice();
+    if( type == 'sweeping' ){
+      scale.nice();
+    }
     onepx = scale.invert(1) - scale.invert(0);
 
     // If we're too late for the first prepare event, skip it.
@@ -256,6 +278,23 @@ oscope.context = function() {
     return context;
   };
 
+  // set the type of the context: 'sweeping' or 'scrolling'
+  context.type = function(_){
+    if(!arguments.length) return type;
+    if( _ != type ){
+      if( _ == 'sweeping' ){
+        scale.isModular( true );
+        type = _;
+      }
+      else if( _ == 'scrolling' ){
+        scale.isModular( false );
+        type = _;
+      }
+      return update();
+    }
+    return context;
+  };
+
   // Add, remove or get listeners for events.
   context.on = function(type, listener) {
     if (arguments.length < 2) return event.on(type);
@@ -270,6 +309,7 @@ oscope.context = function() {
       if (/^beforechange(\.|$)/.test(type)) listener.call(context, start0, stop0);
       if (/^change(\.|$)/.test(type)) listener.call(context, start0, stop0);
       if (/^focus(\.|$)/.test(type)) listener.call(context, focus);
+      if (/^update(\.|$)/.test(type)) listener.call(context, update, start1, stop1 );
     }
 
     return context;
@@ -738,7 +778,9 @@ oscope_contextPrototype.oscope = function(){
 
         if( !isFinite(start) ){
           start = t0;
+          ctx.clearRect(0, 0, width, height);
         }
+
 
         var xStop = (context.scale(stop));
         var xStart = ( context.scale(start) );
@@ -747,6 +789,25 @@ oscope_contextPrototype.oscope = function(){
         var iStart = Math.round( xStart ),
             iStop = Math.round( xStop ),
             i0 = Math.round( context.scale(t0) );
+
+        // Setup the buffer context:
+        ctx0.save();
+        ctx0.clearRect(0,0,width,height);
+
+
+        // Handle the case of a scrolling context first:
+        if( context.type() == 'scrolling' ){
+          var dx = context.scale( stop ) - context.scale( start );
+          var di = Math.round( dx );
+
+          // if the x delta is less than the width then we copy
+          if( di < width ){
+            ctx0.clearRect( 0, 0, width, height );
+            ctx0.drawImage( ctx.canvas, di, 0, i0,  height, 0, 0, i0, height );
+            ctx.clearRect( 0, 0, width, height );
+            ctx.drawImage( ctx0.canvas, 0, 0 );
+          }
+        }
 
 
 
@@ -767,10 +828,6 @@ oscope_contextPrototype.oscope = function(){
                 //);
           }
         };
-
-        // Setup the buffer context:
-        ctx0.save();
-        ctx0.clearRect(0,0,width,height);
 
         var canvasUpdated = false,
             wrapAround = false;
@@ -945,9 +1002,15 @@ oscope_contextPrototype.oscope = function(){
             .text(function(d){ return isNaN(d) ? null : format(d); });
       }
 
+      function update(start1, stop){
+        start = -Infinity;
+        ready = false;
+      }
+
       // update the chart when the context changes
       context.on('change.oscope-' + id, change);
       context.on('focus.oscope-' + id, focus);
+      context.on('update.oscope-' + id, update);
 
       // Display the first metric chagne immediately,
       // but defer subsequent updates to the canvas change
@@ -988,6 +1051,7 @@ oscope_contextPrototype.oscope = function(){
       d.metric.on('change.oscope-' + d.id, null);
       context.on('change.oscope-' + d.id, null);
       context.on('focus.oscope-' + d.id, null);
+      context.on('update.oscope-' + d.id, null);
     }
   };
 

@@ -11,6 +11,11 @@
     <div id='body'>
     <h1>oscope.js</h1>
     <h2>Visualisation of real-time time-series</h2>
+    <h3>Select chart type:</h3>
+    <select name="select-plot-type" onchange="context.type(this.value)">
+      <option value="scrolling">Scrolling</option>
+      <option value="sweeping" selected>Sweeping</option>
+    </select>
     <div id='example1'></div>
     <div id='example2'></div>
     <div id='example3'></div>
