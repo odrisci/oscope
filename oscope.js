@@ -198,7 +198,7 @@ oscope.context = function() {
     if (delay < clientDelay) delay += step;
 
     timeout = setTimeout(function prepare() {
-      stop1 = new Date(Date.now() - serverDelay - overlap);
+      stop1 = new Date(Date.now() - serverDelay );
       start1 = new Date(stop1 - duration);
       var dataStop = new Date( +stop1 + overlap );
 
@@ -410,11 +410,10 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    var steps = Math.min(Math.floor(duration/step), Math.round((start1 - start) / step));
-    if (!steps || fetching) return; // already fetched, or fetching!
+    if( fetching ) return;
     fetching = true;
-    steps = Math.min(Math.floor(duration/step), steps + oscope_metricOverlap);
-    var start0 = new Date(stop - steps * step);
+    var start0 = start1, origData=values.data();
+    if( origData.length > 0 ) start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
     request(start0, stop, step, function(error, data) {
       fetching = false;
       if (error) return console.warn(error);

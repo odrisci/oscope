@@ -58,7 +58,7 @@ oscope.context = function() {
     if (delay < clientDelay) delay += step;
 
     timeout = setTimeout(function prepare() {
-      stop1 = new Date(Date.now() - serverDelay - overlap);
+      stop1 = new Date(Date.now() - serverDelay );
       start1 = new Date(stop1 - duration);
       var dataStop = new Date( +stop1 + overlap );
 
