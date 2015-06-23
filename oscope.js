@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2015-02-05 
+/*! oscope v1.6.0 - 2015-06-23 
  * License:  */
 'use strict';
 (function(exports){
@@ -715,8 +715,6 @@ oscope_contextPrototype.oscope = function(){
       buffer.height = height * ratio;
 
       ctx = canvas.node().getContext('2d');
-      ctx.scale( ratio, ratio );
-      ctx0.scale( ratio, ratio );
 
       if( metricIsArray ){
         numMetrics = metric_.length;
