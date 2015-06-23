@@ -927,15 +927,16 @@ oscope_contextPrototype.oscope = function(){
                   x, y );*/
                 incrementTsIdx();
                 //wrapAround = true;
+                canvasUpdated = true;
               }
 
-              if( context.scale.invert( xPrev ) > t0 ){
+              if( tsIdx < ts.length ){
                 wrapAround = true;
+                // Plot one point past the edge of the current canvas
+                x += context.size();
+                ctx0.lineTo(x,y);
+                canvasUpdated = true;
               }
-              // Plot one point past the edge of the current canvas
-              x += context.size();
-              ctx0.lineTo(x,y);
-              canvasUpdated = true;
               ctx0.stroke();
               ctx0.closePath();
 
@@ -963,7 +964,7 @@ oscope_contextPrototype.oscope = function(){
 
             incrementTsIdx();
 
-            while( x < xStop + barWidth && tsIdx < ts.length ){ //tsIdx < ts.length ){
+            while( x < xStop + barWidth && tsIdx < ts.length ){
               ctx0.lineTo(x,y);
               /*ctx.bezierCurveTo(
                 Math.round( (xPrev + x )/2 ), yPrev,
@@ -980,7 +981,7 @@ oscope_contextPrototype.oscope = function(){
             ctx0.restore();
 
             // Store the last time value plotted for this metric:
-            tsIdx = tsIdx - 1; //ts.length-1;
+            tsIdx = ts.length-1;
             while( tsIdx > 0 && ts[tsIdx][0] >= stop ){
               --tsIdx;
             }
