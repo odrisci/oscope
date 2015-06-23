@@ -706,6 +706,7 @@ oscope_contextPrototype.oscope = function(){
           offsets = [0],
           numMetrics = 1,
           focusValue = [[]],
+          earliestStartTime = Infinity,
           metricIsArray = (metric_ instanceof Array);
 
       canvas.datum({id: id, metric: metric_});
@@ -883,6 +884,14 @@ oscope_contextPrototype.oscope = function(){
             ctx0.strokeStyle = colors_[metricIdx % colors_.length];
             ctx0.lineWidth = 3;
             //ctx0.translate( ctx0.lineWidth/2, ctx0.lineWidth/2);
+
+            // By setting metricsReady to false we force a refresh of the whole
+            // plot whenever we get data older than data we previously plotted.
+            if( earliestStartTime > ts[tsIdx][0] ){
+              earliestStartTime = ts[tsIdx][0];
+              metricsReady[metricIdx] = false;
+            }
+
 
             // Find wraparound:
             if( x > xLast ){
