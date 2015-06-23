@@ -120,13 +120,16 @@ oscope_contextPrototype.oscope = function(){
 
         // Erase old data
         var t0;
-
+        var barDuration = ( context.type() == 'scrolling' ? 0 :
+                            barWidth*( context.duration()/width ) );
         if( ready && start < stop ){
           t0 = new Date( start - context.overlap());
         }
         else{
-          t0 = new Date( stop - context.duration() + context.overlap() );
+          t0 = new Date( stop - context.duration() + barDuration );
         }
+
+        t0 = new Date( Math.max( +t0, stop - context.duration() ) );
 
         if( !isFinite(start) || start > stop ){
           start = t0;
@@ -149,16 +152,24 @@ oscope_contextPrototype.oscope = function(){
 
         // Handle the case of a scrolling context first:
         if( context.type() == 'scrolling' ){
-          var dx = context.scale( stop ) - context.scale( start );
+          var dx = xStop - xStart;
           var di = Math.round( dx );
 
           // if the x delta is less than the width then we copy
-          if( di < width ){
+          if( di > 0 && di < width ){
             ctx0.clearRect( 0, 0, width, height );
-            ctx0.drawImage( ctx.canvas, di, 0, i0,  height, 0, 0, i0, height );
+            ctx0.drawImage( ctx.canvas, di, 0, iStart,  height, 0, 0, iStart, height );
             ctx.clearRect( 0, 0, width, height );
             ctx.drawImage( ctx0.canvas, 0, 0 );
+            start = context.scale.invert( xStart + di );
           }
+
+          if( di >= width ){
+            start = stop;
+          }
+        }
+        else{
+          start = stop;
         }
 
 
@@ -206,7 +217,8 @@ oscope_contextPrototype.oscope = function(){
           }
 
           // Now get some data to plot
-          var ts = currMetric.getValuesInRange( t0-context.overlap(), +stop + context.overlap() ),
+          var ts = currMetric.getValuesInRange( t0-context.overlap(),
+            +stop + context.overlap() ),
               lastTime = [];
 
           if( ts.length > 0 ){
@@ -233,7 +245,7 @@ oscope_contextPrototype.oscope = function(){
 
 
             // Find wraparound:
-            if( x > xLast ){
+            if( x > xStop ){
 
               // Set the clip path to the limit
               ctx0.save();
@@ -242,12 +254,12 @@ oscope_contextPrototype.oscope = function(){
 
               ctx0.clip();*/
 
-              ctx0.beginPath();
               ctx0.moveTo(x, y);
+              ctx0.beginPath();
 
               incrementTsIdx();
 
-              while( x > xLast ){
+              while( x > xStop && tsIdx < ts.length ){
                 ctx0.lineTo(x,y);
                 /*ctx.bezierCurveTo(
                   Math.round( (xPrev + x )/2 ), yPrev,
@@ -291,7 +303,7 @@ oscope_contextPrototype.oscope = function(){
 
             incrementTsIdx();
 
-            while( tsIdx < ts.length ){
+            while( x < xStop + barWidth && tsIdx < ts.length ){ //tsIdx < ts.length ){
               ctx0.lineTo(x,y);
               /*ctx.bezierCurveTo(
                 Math.round( (xPrev + x )/2 ), yPrev,
@@ -308,7 +320,7 @@ oscope_contextPrototype.oscope = function(){
             ctx0.restore();
 
             // Store the last time value plotted for this metric:
-            tsIdx = ts.length-1;
+            tsIdx = tsIdx - 1; //ts.length-1;
             while( tsIdx > 0 && ts[tsIdx][0] >= stop ){
               --tsIdx;
             }
@@ -320,30 +332,29 @@ oscope_contextPrototype.oscope = function(){
 
         ready = !metricsReady.some( function(d){ return !d; } );
         //start = Math.min.apply( null, lastTime );
-        start = stop;
 
         // Setup the copy to the main canvas:
-        ctx.save();
-        if( wrapAround ){
+        if( i0 > iStop ){
+          ctx.save();
           ctx.clearRect(i0, 0, context.size()- i0, height);
           if( canvasUpdated && i0 < context.size() ){
             ctx.drawImage( ctx0.canvas, i0, 0, context.size() - i0, height,
                         i0, 0, context.size() - i0, height );
           }
-        }
 
-        if( i0 > iStop ){
+          ctx.restore();
           i0 = 0;
         }
 
-        ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
+
         if( canvasUpdated && iStop > i0 ){
+          ctx.save();
+          ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
           ctx.drawImage(ctx0.canvas, i0, 0, iStop - i0, height,
                       i0, 0, iStop - i0, height );
+          ctx.restore();
         }
 
-        // Where to start the blank bar on the next go around
-        start = stop;
 
         ctx.restore();
       }
