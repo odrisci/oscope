@@ -336,24 +336,20 @@ oscope_contextPrototype.oscope = function(){
 
         // Setup the copy to the main canvas:
         if( i0 > iStop ){
-          ctx.save();
           ctx.clearRect(i0, 0, context.size()- i0, height);
           if( canvasUpdated && i0 < context.size() ){
             ctx.drawImage( ctx0.canvas, i0, 0, context.size() - i0, height,
                         i0, 0, context.size() - i0, height );
           }
 
-          ctx.restore();
           i0 = 0;
         }
 
 
+        ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
         if( canvasUpdated && iStop > i0 ){
-          ctx.save();
-          ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
           ctx.drawImage(ctx0.canvas, i0, 0, iStop - i0, height,
                       i0, 0, iStop - i0, height );
-          ctx.restore();
         }
 
 
