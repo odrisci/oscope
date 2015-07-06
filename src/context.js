@@ -39,6 +39,8 @@ oscope.context = function() {
       scale.nice();
     }
 
+    onepx = duration/size;
+
     event.update.call( context, start1, stop1 );
 
     return context;

@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2015-06-24 
+/*! oscope v1.6.0 - 2015-07-06 
  * License:  */
 'use strict';
 (function(exports){
@@ -178,6 +178,8 @@ oscope.context = function() {
     if( type == 'sweeping' ){
       scale.nice();
     }
+
+    onepx = duration/size;
 
     event.update.call( context, start1, stop1 );
 
