@@ -67,7 +67,15 @@ oscope_contextPrototype.metric = function(request, name) {
     if( fetching ) return;
     fetching = true;
     var start0 = start1, origData=values.data();
-    if( origData.length > 0 ) start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
+    if( origData.length > 0 ){
+      // total refresh is start moves back in time
+      if( +start1 < start ){
+        values.dropDataBefore( stop );
+      }
+      else{
+        start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
+      }
+    }
     request(start0, stop, step, function(error, data) {
       fetching = false;
       if (error) return console.warn(error);
