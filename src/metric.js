@@ -69,8 +69,8 @@ oscope_contextPrototype.metric = function(request, name) {
     var start0 = start1, origData=values.data();
     if( origData.length > 0 ){
       // total refresh is start moves back in time
-      if( +start1 < start ){
-        values.dropDataBefore( stop );
+      if( +start1 < +start ){
+        values = new ts.timeSeries();
       }
       else{
         start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
@@ -87,6 +87,9 @@ oscope_contextPrototype.metric = function(request, name) {
   // When the context changes, switch to the new data, ready-or-not!
   function beforechange(start1, stop1) {
     if (!isFinite(start)) start = start1;
+    if( +start1 < +start ){
+      values = new ts.timeSeries();
+    }
     values.dropDataBefore(start1);
     start = start1;
     stop = stop1;
