@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2015-02-05 
+/*! oscope v1.6.0 - 2015-07-09 
  * License:  */
 'use strict';
 (function(exports){
@@ -179,6 +179,8 @@ oscope.context = function() {
       scale.nice();
     }
 
+    onepx = duration/size;
+
     event.update.call( context, start1, stop1 );
 
     return context;
@@ -198,7 +200,7 @@ oscope.context = function() {
     if (delay < clientDelay) delay += step;
 
     timeout = setTimeout(function prepare() {
-      stop1 = new Date(Date.now() - serverDelay - overlap);
+      stop1 = new Date(Date.now() - serverDelay );
       start1 = new Date(stop1 - duration);
       var dataStop = new Date( +stop1 + overlap );
 
@@ -410,11 +412,18 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    var steps = Math.min(Math.floor(duration/step), Math.round((start1 - start) / step));
-    if (!steps || fetching) return; // already fetched, or fetching!
+    if( fetching ) return;
     fetching = true;
-    steps = Math.min(Math.floor(duration/step), steps + oscope_metricOverlap);
-    var start0 = new Date(stop - steps * step);
+    var start0 = start1, origData=values.data();
+    if( origData.length > 0 ){
+      // total refresh is start moves back in time
+      if( +start1 < +start ){
+        values = new ts.timeSeries();
+      }
+      else{
+        start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
+      }
+    }
     request(start0, stop, step, function(error, data) {
       fetching = false;
       if (error) return console.warn(error);
@@ -426,6 +435,9 @@ oscope_contextPrototype.metric = function(request, name) {
   // When the context changes, switch to the new data, ready-or-not!
   function beforechange(start1, stop1) {
     if (!isFinite(start)) start = start1;
+    if( +start1 < +start ){
+      values = new ts.timeSeries();
+    }
     values.dropDataBefore(start1);
     start = start1;
     stop = stop1;
@@ -692,6 +704,13 @@ oscope_contextPrototype.oscope = function(){
           canvas = d3.select(that).select('canvas'),
           ctx0 = buffer.getContext( '2d' ),
           ctx,
+          devicePixelRatio = window.devicePixelRatio || 1,
+          backingStoreRatio = ctx0.webkitBackingStorePixelRatio ||
+                              ctx0.mozBackingStorePixelRatio ||
+                              ctx0.msBackingStorePixelRatio ||
+                              ctx0.oBackingStorePixelRatio ||
+                              ctx0.backingStorePixelRatio || 1,
+          ratio = devicePixelRatio / backingStoreRatio,
           span,
           max_,
           ready,
@@ -699,9 +718,15 @@ oscope_contextPrototype.oscope = function(){
           offsets = [0],
           numMetrics = 1,
           focusValue = [[]],
+          earliestStartTime = Infinity,
           metricIsArray = (metric_ instanceof Array);
 
       canvas.datum({id: id, metric: metric_});
+      canvas.width = width*ratio;
+      canvas.height = height * ratio;
+      buffer.width = width*ratio;
+      buffer.height = height * ratio;
+
       ctx = canvas.node().getContext('2d');
 
       if( metricIsArray ){
@@ -768,13 +793,16 @@ oscope_contextPrototype.oscope = function(){
 
         // Erase old data
         var t0;
-
+        var barDuration = ( context.type() == 'scrolling' ? 0 :
+                            barWidth*( context.duration()/width ) );
         if( ready && start < stop ){
           t0 = new Date( start - context.overlap());
         }
         else{
-          t0 = new Date( stop - context.duration() + context.overlap() );
+          t0 = new Date( stop - context.duration() + barDuration );
         }
+
+        t0 = new Date( Math.max( +t0, stop - context.duration() ) );
 
         if( !isFinite(start) || start > stop ){
           start = t0;
@@ -797,16 +825,24 @@ oscope_contextPrototype.oscope = function(){
 
         // Handle the case of a scrolling context first:
         if( context.type() == 'scrolling' ){
-          var dx = context.scale( stop ) - context.scale( start );
+          var dx = xStop - xStart;
           var di = Math.round( dx );
 
           // if the x delta is less than the width then we copy
-          if( di < width ){
+          if( di > 0 && di < width ){
             ctx0.clearRect( 0, 0, width, height );
-            ctx0.drawImage( ctx.canvas, di, 0, i0,  height, 0, 0, i0, height );
+            ctx0.drawImage( ctx.canvas, di, 0, iStart,  height, 0, 0, iStart, height );
             ctx.clearRect( 0, 0, width, height );
             ctx.drawImage( ctx0.canvas, 0, 0 );
+            start = context.scale.invert( xStart + di );
           }
+
+          if( di >= width ){
+            start = stop;
+          }
+        }
+        else{
+          start = stop;
         }
 
 
@@ -854,7 +890,8 @@ oscope_contextPrototype.oscope = function(){
           }
 
           // Now get some data to plot
-          var ts = currMetric.getValuesInRange( t0-context.overlap(), +stop + context.overlap() ),
+          var ts = currMetric.getValuesInRange( t0-context.overlap(),
+            +stop + context.overlap() ),
               lastTime = [];
 
           if( ts.length > 0 ){
@@ -872,8 +909,16 @@ oscope_contextPrototype.oscope = function(){
             ctx0.lineWidth = 3;
             //ctx0.translate( ctx0.lineWidth/2, ctx0.lineWidth/2);
 
+            // By setting metricsReady to false we force a refresh of the whole
+            // plot whenever we get data older than data we previously plotted.
+            if( earliestStartTime > ts[tsIdx][0] ){
+              earliestStartTime = ts[tsIdx][0];
+              metricsReady[metricIdx] = false;
+            }
+
+
             // Find wraparound:
-            if( x > xLast ){
+            if( x > xStop ){
 
               // Set the clip path to the limit
               ctx0.save();
@@ -882,12 +927,12 @@ oscope_contextPrototype.oscope = function(){
 
               ctx0.clip();*/
 
-              ctx0.beginPath();
               ctx0.moveTo(x, y);
+              ctx0.beginPath();
 
               incrementTsIdx();
 
-              while( x > xLast ){
+              while( x > xStop && tsIdx < ts.length ){
                 ctx0.lineTo(x,y);
                 /*ctx.bezierCurveTo(
                   Math.round( (xPrev + x )/2 ), yPrev,
@@ -895,15 +940,16 @@ oscope_contextPrototype.oscope = function(){
                   x, y );*/
                 incrementTsIdx();
                 //wrapAround = true;
+                canvasUpdated = true;
               }
 
-              if( context.scale.invert( xPrev ) > t0 ){
+              if( tsIdx < ts.length ){
                 wrapAround = true;
+                // Plot one point past the edge of the current canvas
+                x += context.size();
+                ctx0.lineTo(x,y);
+                canvasUpdated = true;
               }
-              // Plot one point past the edge of the current canvas
-              x += context.size();
-              ctx0.lineTo(x,y);
-              canvasUpdated = true;
               ctx0.stroke();
               ctx0.closePath();
 
@@ -931,7 +977,7 @@ oscope_contextPrototype.oscope = function(){
 
             incrementTsIdx();
 
-            while( tsIdx < ts.length ){
+            while( x < xStop + barWidth && tsIdx < ts.length ){
               ctx0.lineTo(x,y);
               /*ctx.bezierCurveTo(
                 Math.round( (xPrev + x )/2 ), yPrev,
@@ -960,21 +1006,18 @@ oscope_contextPrototype.oscope = function(){
 
         ready = !metricsReady.some( function(d){ return !d; } );
         //start = Math.min.apply( null, lastTime );
-        start = stop;
 
         // Setup the copy to the main canvas:
-        ctx.save();
-        if( wrapAround ){
+        if( i0 > iStop ){
           ctx.clearRect(i0, 0, context.size()- i0, height);
           if( canvasUpdated && i0 < context.size() ){
             ctx.drawImage( ctx0.canvas, i0, 0, context.size() - i0, height,
                         i0, 0, context.size() - i0, height );
           }
-        }
 
-        if( i0 > iStop ){
           i0 = 0;
         }
+
 
         ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
         if( canvasUpdated && iStop > i0 ){
@@ -982,8 +1025,6 @@ oscope_contextPrototype.oscope = function(){
                       i0, 0, iStop - i0, height );
         }
 
-        // Where to start the blank bar on the next go around
-        start = stop;
 
         ctx.restore();
       }
