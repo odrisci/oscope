@@ -51,7 +51,7 @@ oscope_contextPrototype.annotation = function(request, name) {
         ret = [];
 
     for( var i = 0; i < len; ++i ){
-      if( values[i].startTime < t1 && values[i].endTime > t0 ){
+      if( +values[i].startTime < +t1 && +values[i].endTime > +t0 ){
         ret.push( values[i] );
       }
     }
