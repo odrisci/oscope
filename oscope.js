@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2015-07-09 
+/*! oscope v1.6.0 - 2016-01-25 
  * License:  */
 'use strict';
 (function(exports){
@@ -415,15 +415,8 @@ oscope_contextPrototype.metric = function(request, name) {
     if( fetching ) return;
     fetching = true;
     var start0 = start1, origData=values.data();
-    if( origData.length > 0 ){
-      // total refresh is start moves back in time
-      if( +start1 < +start ){
-        values = new ts.timeSeries();
-      }
-      else{
-        start0 = new Date( Math.max( +start1, origData[origData.length-1][0] + 1 ) );
-      }
-    }
+    values = new ts.timeSeries();
+
     request(start0, stop, step, function(error, data) {
       fetching = false;
       if (error) return console.warn(error);
@@ -624,7 +617,7 @@ oscope_contextPrototype.annotation = function(request, name) {
         ret = [];
 
     for( var i = 0; i < len; ++i ){
-      if( values[i].startTime < t1 && values[i].endTime > t0 ){
+      if( +values[i].startTime < +t1 && +values[i].endTime > +t0 ){
         ret.push( values[i] );
       }
     }
@@ -683,6 +676,7 @@ oscope_contextPrototype.oscope = function(){
       title = oscope_identity,
       format = d3.format('.2s'),
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
+      lineWidth = 1,
       barWidth = 5;
 
   function oscope(selection) {
@@ -906,7 +900,7 @@ oscope_contextPrototype.oscope = function(){
                 xLast = context.scale(ts[ts.length-1][0]);
 
             ctx0.strokeStyle = colors_[metricIdx % colors_.length];
-            ctx0.lineWidth = 3;
+            ctx0.lineWidth = lineWidth;
             //ctx0.translate( ctx0.lineWidth/2, ctx0.lineWidth/2);
 
             // By setting metricsReady to false we force a refresh of the whole
@@ -1135,6 +1129,12 @@ oscope_contextPrototype.oscope = function(){
   oscope.colors = function(_) {
     if (!arguments.length) return colors;
     colors = _;
+    return oscope;
+  };
+
+  oscope.lineWidth = function(_) {
+    if (!arguments.length) return lineWidth;
+    lineWidth = _;
     return oscope;
   };
 
