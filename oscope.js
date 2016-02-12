@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2016-01-25 
+/*! oscope v1.6.0 - 2016-02-12 
  * License:  */
 'use strict';
 (function(exports){
@@ -102,11 +102,11 @@ oscope.modularTimeScale = function(){
     return scale.rescale();
   };
 
-  scale.nice = function(){
+  scale.nice = function(_){
     var domain_ = scale_.domain();
 
     // This will extend the domain to give nice values for the start and end points
-    scale_.nice();
+    scale_.nice(_);
 
     // Now we treat the nice first element of the domain as tleft_ and restore the old domain:
     scale.tleft( scale_.domain()[0] );
@@ -176,7 +176,7 @@ oscope.context = function() {
     scale.domain([start0,stop0]);
 
     if( type == 'sweeping' ){
-      scale.nice();
+      scale.nice(1);
     }
 
     onepx = duration/size;
@@ -192,7 +192,7 @@ oscope.context = function() {
 
     scale.domain([start0,stop0]);
     if( type == 'sweeping' ){
-      scale.nice();
+      scale.nice(1);
     }
     onepx = scale.invert(1) - scale.invert(0);
 

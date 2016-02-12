@@ -36,7 +36,7 @@ oscope.context = function() {
     scale.domain([start0,stop0]);
 
     if( type == 'sweeping' ){
-      scale.nice();
+      scale.nice(1);
     }
 
     onepx = duration/size;
@@ -52,7 +52,7 @@ oscope.context = function() {
 
     scale.domain([start0,stop0]);
     if( type == 'sweeping' ){
-      scale.nice();
+      scale.nice(1);
     }
     onepx = scale.invert(1) - scale.invert(0);
 

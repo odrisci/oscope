@@ -74,11 +74,11 @@ oscope.modularTimeScale = function(){
     return scale.rescale();
   };
 
-  scale.nice = function(){
+  scale.nice = function(_){
     var domain_ = scale_.domain();
 
     // This will extend the domain to give nice values for the start and end points
-    scale_.nice();
+    scale_.nice(_);
 
     // Now we treat the nice first element of the domain as tleft_ and restore the old domain:
     scale.tleft( scale_.domain()[0] );
