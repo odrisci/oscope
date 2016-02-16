@@ -26,6 +26,7 @@ module.exports = function (grunt) {
     'src/option.js',
     'src/modularTimeScale.js',
     'src/context.js',
+    'src/passive-context.js',
     'src/metric.js',
     'src/metric-constant.js',
     'src/metric-operator.js',

@@ -11,13 +11,17 @@ oscope_contextPrototype.oscope = function(){
       format = d3.format('.2s'),
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       lineWidth = 1,
-      barWidth = 5;
+      barWidth = 5,
+      zoom = d3.behavior.zoom();
 
   function oscope(selection) {
 
     selection.append('canvas')
       .on('mousemove.oscope', function() { context.focus(Math.round(d3.mouse(this)[0])); })
       .on('mouseout.oscope', function() { context.focus(null); } )
+      .call( zoom.on( 'zoom', function pan(){
+        context.pan();
+      }))
       .attr('width', width)
       .attr('height', height);
 
@@ -348,9 +352,10 @@ oscope_contextPrototype.oscope = function(){
 
 
         ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
-        if( canvasUpdated && iStop > i0 ){
-          ctx.drawImage(ctx0.canvas, i0, 0, iStop - i0, height,
-                      i0, 0, iStop - i0, height );
+        if( canvasUpdated && i0 > 0 && iStop > i0 ){
+          var maxW = Math.min( iStop-i0, width );
+          ctx.drawImage(ctx0.canvas, i0, 0, maxW, height,
+                      i0, 0, maxW, height );
         }
 
 
