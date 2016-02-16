@@ -57,6 +57,7 @@ oscope_contextPrototype.metric = function(request, name) {
       step = context.step(),
       size = context.size(),
       duration = context.duration(),
+      history = duration,
       values = new ts.timeSeries(),
       event = d3.dispatch("change"),
       listening = 0,
@@ -83,7 +84,7 @@ oscope_contextPrototype.metric = function(request, name) {
     if( +start1 < +start ){
       values = new ts.timeSeries();
     }
-    values.dropDataBefore(start1);
+    values.dropDataBefore( new Date( +stop1 - history ) );
     start = start1;
     stop = stop1;
   }
@@ -134,6 +135,12 @@ oscope_contextPrototype.metric = function(request, name) {
   //
   if (arguments.length > 1) metric.toString = function() {
     return name;
+  };
+
+  metric.history = function(_){
+    if( !arguments.length ) return history;
+    history = _;
+    return metric;
   };
 
   return metric;

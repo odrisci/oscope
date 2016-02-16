@@ -442,7 +442,7 @@ oscope_contextPrototype.oscope = function(){
   };
 
   oscope.extent = function(_) {
-    if(!arguments.length) return scale;
+    if(!arguments.length) return extent;
     extent = _;
     return oscope;
   };
