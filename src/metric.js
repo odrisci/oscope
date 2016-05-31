@@ -65,7 +65,7 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    if( fetching ) return;
+    //if( fetching ) return;
     fetching = true;
     var start0 = start1, origData=values.data();
     values = new ts.timeSeries();
@@ -74,7 +74,7 @@ oscope_contextPrototype.metric = function(request, name) {
       fetching = false;
       if (error) return console.warn(error);
       values.splice(data);
-      event.change.call(metric, start, stop);
+      event.change.call(metric, start0, stop);
     });
   }
 
@@ -84,10 +84,13 @@ oscope_contextPrototype.metric = function(request, name) {
     if( +start1 < +start ){
       values = new ts.timeSeries();
     }
-    values.dropDataBefore( new Date( +stop1 - history ) );
+    //values.dropDataBefore( new Date( +stop1 - history ) );
     start = start1;
     stop = stop1;
   }
+
+  metric.prepare = prepare;
+  metric.beforechange = beforechange;
 
   //
   metric.valueAt = function(i) {
@@ -111,13 +114,15 @@ oscope_contextPrototype.metric = function(request, name) {
 
     // If there are no listeners, then stop listening to the context,
     // and avoid unnecessary fetches.
-    if (listener === null) {
-      if (event.on(type) != null && --listening == 0) {
-        context.on("prepare" + id, null).on("beforechange" + id, null);
-      }
-    } else {
-      if (event.on(type) == null && ++listening == 1) {
-        context.on("prepare" + id, prepare).on("beforechange" + id, beforechange);
+    if( context.type() !== 'passive' ){
+      if (listener === null) {
+        if (event.on(type) != null && --listening == 0) {
+          context.on("prepare" + id, null).on("beforechange" + id, null);
+        }
+      } else {
+        if (event.on(type) == null && ++listening == 1) {
+          context.on("prepare" + id, prepare).on("beforechange" + id, beforechange);
+        }
       }
     }
 
