@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2016-02-16 
+/*! oscope v1.6.0 - 2016-05-30 
  * License:  */
 'use strict';
 (function(exports){
@@ -357,8 +357,8 @@ oscope.passive_context = function(){
       scale = context.scale = d3.time.scale().range([0, size]),
       type = 'passive',
       focus,
+      id = ++oscope_id,
       onepx = scale.invert(1) - scale.invert(0),
-      translate0 = 0,
       overlap = oscope_metricOverlap * step;
   function update() {
     onepx = duration/size;
@@ -370,7 +370,7 @@ oscope.passive_context = function(){
 
     setTimeout( change, 0 );
 
-    return context;
+    return change();
   }
 
   function change(){
@@ -439,7 +439,6 @@ oscope.passive_context = function(){
     start0 = new Date( _ );
     stop0 = new Date( +start0 + duration );
     scale.domain( [start0, stop0 ] );
-    update();
     return change();
   };
 
@@ -448,17 +447,14 @@ oscope.passive_context = function(){
     stop0 = new Date(_);
     start0 = new Date( +stop0 - duration );
     scale.domain( [start0, stop0 ] );
-    update();
     return change();
   };
 
   context.pan = function(){
-    var dx = d3.event.translate[0] - translate0;
+    var dx = d3.event.dx;
     var newDomain = [ scale.invert( scale.range()[0] - dx ),
       scale.invert( scale.range()[1]  - dx ) ];
     scale.domain( newDomain );
-    translate0 = d3.event.translate[0];
-    update();
     return change();
   };
 
@@ -482,7 +478,7 @@ oscope.passive_context = function(){
     return context;
   };
 
-  d3.select(window).on("keydown.context-" + ++oscope_id, function() {
+  d3.select(window).on("keydown.context-" + id, function() {
     switch (!d3.event.metaKey && d3.event.keyCode) {
       case 37: // left
         if (focus === null) focus = context.scale(stop1-onepx);
@@ -584,7 +580,7 @@ oscope_contextPrototype.metric = function(request, name) {
       fetching = false;
       if (error) return console.warn(error);
       values.splice(data);
-      event.change.call(metric, start, stop);
+      event.change.call(metric, start0, stop);
     });
   }
 
@@ -594,10 +590,13 @@ oscope_contextPrototype.metric = function(request, name) {
     if( +start1 < +start ){
       values = new ts.timeSeries();
     }
-    values.dropDataBefore( new Date( +stop1 - history ) );
+    //values.dropDataBefore( new Date( +stop1 - history ) );
     start = start1;
     stop = stop1;
   }
+
+  metric.prepare = prepare;
+  metric.beforechange = beforechange;
 
   //
   metric.valueAt = function(i) {
@@ -621,13 +620,15 @@ oscope_contextPrototype.metric = function(request, name) {
 
     // If there are no listeners, then stop listening to the context,
     // and avoid unnecessary fetches.
-    if (listener === null) {
-      if (event.on(type) != null && --listening == 0) {
-        context.on("prepare" + id, null).on("beforechange" + id, null);
-      }
-    } else {
-      if (event.on(type) == null && ++listening == 1) {
-        context.on("prepare" + id, prepare).on("beforechange" + id, beforechange);
+    if( context.type() !== 'passive' ){
+      if (listener === null) {
+        if (event.on(type) != null && --listening == 0) {
+          context.on("prepare" + id, null).on("beforechange" + id, null);
+        }
+      } else {
+        if (event.on(type) == null && ++listening == 1) {
+          context.on("prepare" + id, prepare).on("beforechange" + id, beforechange);
+        }
       }
     }
 
@@ -847,14 +848,14 @@ oscope_contextPrototype.oscope = function(){
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       lineWidth = 1,
       barWidth = 5,
-      zoom = d3.behavior.zoom();
+      drag = d3.behavior.drag();
 
   function oscope(selection) {
 
     selection.append('canvas')
       .on('mousemove.oscope', function() { context.focus(Math.round(d3.mouse(this)[0])); })
       .on('mouseout.oscope', function() { context.focus(null); } )
-      .call( zoom.on( 'zoom', function pan(){
+      .call( drag.on( 'drag', function pan(){
         context.pan();
       }))
       .attr('width', width)
@@ -1334,14 +1335,14 @@ oscope_contextPrototype.chart = function(){
       format = d3.format('.2s'),
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       lineWidth = 1,
-      zoom = d3.behavior.zoom();
+      drag = d3.behavior.drag();
 
   function chart(selection) {
 
     selection.append('canvas')
       .on('mousemove.chart', function() { context.focus(Math.round(d3.mouse(this)[0])); })
       .on('mouseout.chart', function() { context.focus(null); } )
-      .call( zoom.on( 'zoom', function pan(){
+      .call( drag.on( 'drag', function pan(){
         context.pan();
       }))
       .attr('width', width)
@@ -1367,6 +1368,9 @@ oscope_contextPrototype.chart = function(){
           bufferLoaded = false,
           bufferLeftLoaded = false,
           bufferRightLoaded = false,
+          bufferLoading = false,
+          bufferLeftLoading= false,
+          bufferRightLoading = false,
           devicePixelRatio = window.devicePixelRatio || 1,
           backingStoreRatio = ctx0.webkitBackingStorePixelRatio ||
                               ctx0.mozBackingStorePixelRatio ||
@@ -1441,27 +1445,30 @@ oscope_contextPrototype.chart = function(){
 
 
       function change(start1, stop){
+
+        // 1) If our buffer and view start times are undefined, or
+        //   if the new start time is earlier than the left buffer, or
+        //   if the new end time is later than the right buffer:
+        //    init the buffers
+        if( !tStartBuffer || !tEndBuffer || !tStartBufferLeft || !tEndBufferLeft ||
+          !tStartBufferRight || !tEndBufferRight || ( stop < tStartBufferLeft ) ||
+          (start1 > tEndBufferRight) ){
+          initBuffers( start1, stop );
+        }
+
         // This is a data change:
         // Ensure that the view hasn't updated:
         if( tStartView !== start1 || tEndView !== stop ){
-          update( start1, stop );
+          update( function(){}, start1, stop );
         }
 
         // Now we simply copy from the centre buffer out to the view:
 
         if( !bufferLoaded ){
-          drawToBuffer(0);
+          // Not ready, bail:
+          return;
         }
-        bufferScale.domain( [tStartBuffer, tEndBuffer] );
-
-        ctx.save();
-        ctx.clearRect(0, 0, width, height);
-        var x0 = Math.round( bufferScale( tStartView ) );
-        ctx.drawImage( ctx0.canvas, x0, 0, width, height,
-          0, 0, width, height );
-        //ctx.drawImage( ctx0.canvas, 0, 0, bufferWidth, height,
-          //0, 0, width, height );
-        ctx.restore();
+        drawCurrentBuffer();
 
       }
 
@@ -1479,7 +1486,7 @@ oscope_contextPrototype.chart = function(){
             .text(function(d){ return isNaN(d) ? null : format(d); });
       }
 
-      function update(start1, stop){
+      function update(updateFn, start1, stop){
         // We need to set the view  here
         // Now check if the buffers need updating:
         //
@@ -1487,6 +1494,37 @@ oscope_contextPrototype.chart = function(){
         // accordingly
         //
         tStartView = start1; tEndView = stop;
+
+      }
+
+      function loadBuffer( bufInd ){
+        var tLeft, tRight;
+
+        switch( bufInd ){
+          case -1:
+            tLeft = tStartBufferLeft;
+            tRight = tEndBufferLeft;
+            bufferLeftLoaded = false;
+            bufferLeftLoading = true;
+            break;
+          case 0:
+            tLeft = tStartBuffer;
+            tRight = tEndBuffer;
+            bufferLoaded = false;
+            bufferLoading = true;
+            break;
+          case 1:
+            tLeft = tStartBufferRight;
+            tRight = tEndBufferRight;
+            bufferRightLoaded = false;
+            bufferRightLoading = true;
+            break;
+          default:
+            throw new Error( 'Invalid buffer index' );
+        }
+
+        metric_.prepare( tLeft, tRight );
+        metric_.beforechange( tLeft, tRight );
 
       }
 
@@ -1503,18 +1541,21 @@ oscope_contextPrototype.chart = function(){
             tLeft = tStartBufferLeft;
             tRight = tEndBufferLeft;
             bufferLeftLoaded = true;
+            bufferLeftLoading = false;
             break;
           case 0:
             theCtx = ctx0;
             tLeft = tStartBuffer;
             tRight = tEndBuffer;
             bufferLoaded = true;
+            bufferLoading = false;
             break;
           case 1:
             theCtx = ctxR;
             tLeft = tStartBufferRight;
             tRight = tEndBufferRight;
             bufferRightLoaded = true;
+            bufferRightLoading = false;
             break;
           default:
             throw new Error( 'Invalid buffer index' );
@@ -1588,25 +1629,55 @@ oscope_contextPrototype.chart = function(){
 
       }
 
+      function drawCurrentBuffer(){
+
+        bufferScale.domain( [tStartBuffer, tEndBuffer] );
+
+        ctx.save();
+        ctx.clearRect(0, 0, width, height);
+        var x0 = Math.max( 0, Math.floor( bufferScale( tStartView ) ) );
+        ctx.drawImage( ctx0.canvas, x0, 0, width, height,
+          0, 0, width, height );
+        //ctx.drawImage( ctx0.canvas, 0, 0, bufferWidth, height,
+          //0, 0, width, height );
+        ctx.restore();
+
+      }
+
+      function stateToString(){
+        return '\n' +
+          'tStartView        : ' + tStartView + '\n' +
+          'tEndView          : ' + tEndView + '\n' +
+          'tStartBuffer      : ' + tStartBuffer + '\n' +
+          'tEndBuffer        : ' + tEndBuffer + '\n' +
+          'tStartBufferLeft  : ' + tStartBufferLeft + '\n' +
+          'tEndBufferLeft    : ' + tEndBufferLeft + '\n' +
+          'tStartBufferRight : ' + tStartBufferRight + '\n' +
+          'tEndBufferRight   : ' + tEndBufferRight;
+      }
+
       function initBuffers( start, stop ){
 
         var duration = context.duration();
         var bufferDuration = duration*bufferWidth/width;
         var midPoint = +start + duration/2;
 
-        tStartView = start; tStartView = stop;
+        tStartView = start; tEndView = stop;
 
         tStartBuffer = new Date( +midPoint - bufferDuration/2 );
         tEndBuffer = new Date( +midPoint + bufferDuration/2 );
         bufferLoaded = false;
+        bufferLoading = false;
 
         tEndBufferLeft = new Date( +tStartBuffer + duration );
         tStartBufferLeft = new Date( +tEndBufferLeft - bufferDuration );
         bufferLeftLoaded = false;
+        bufferLeftLoading = false;
 
         tStartBufferRight = new Date( +tEndBuffer - duration );
         tEndBufferRight = new Date( +tStartBufferRight + bufferDuration );
-        bufferLeftLoaded = false;
+        bufferRightLoaded = false;
+        bufferRightLoading = false;
       }
 
       function rotateBuffers( leftOrRight ){
@@ -1637,6 +1708,12 @@ oscope_contextPrototype.chart = function(){
           bufferLeftLoaded = false;
           bufferLoaded = tmp1;
           bufferRightLoaded = tmp2;
+
+          tmp1 = bufferLeftLoading;
+          tmp2 = bufferLoading;
+          bufferLeftLoading = false;
+          bufferLoading = tmp1;
+          bufferRightLoading = tmp2;
 
           tmp1 = tStartBufferLeft;
           tmp2 = tStartBuffer;
@@ -1677,6 +1754,12 @@ oscope_contextPrototype.chart = function(){
           bufferLoaded = tmp2;
           bufferRightLoaded = false;
 
+          tmp1 = bufferLeftLoading;
+          tmp2 = bufferRightLoading;
+          bufferLeftLoading = bufferLoading;
+          bufferLoading = tmp2;
+          bufferRightLoading = false;
+
           tmp1 = tStartBufferLeft;
           tmp2 = tStartBufferRight;
           tStartBufferLeft = tStartBuffer;
@@ -1704,39 +1787,41 @@ oscope_contextPrototype.chart = function(){
           initBuffers( start1, stop );
         }
         //
-        // 2) Which buffer do we want to show?
+        // 2) if start1 <= tTriggerLeft and left buffer not loaded
+        //  load the left buffer
+        var dm = ( bufferDuration - duration )/2.0;
+
+        var tTriggerLeft = +tStartBuffer + dm/4;
+        if( start1 < tTriggerLeft && !bufferLeftLoaded && !bufferLeftLoading ){
+          loadBuffer( -1 );
+        }
+        //
+        // 3) if end >= tTriggerRight and right buffer not loaded
+        //  load the right buffer
+        var tTriggerRight = +tEndBuffer - 3*dm/4;
+        if( tTriggerRight <= stop && !bufferRightLoaded && !bufferRightLoading ){
+          loadBuffer( +1 );
+        }
+        // 4) Which buffer do we want to show?
         //  o if t0Left <= start1 and stop < tEndLeft
         //    use left buffer and rotate buffers left
         //  o if t0 <= start1 < tEnd
         //    use middle buffer
         //  o it toRight <= start1 and stop < tEndRight
         //    use right buffer and rotate buffers right
-        if( tStartBufferLeft <= start1 && stop <= tEndBufferLeft ){
+        if( start1 < tStartBuffer ){
           rotateBuffers('left');
         }
-        else if( tStartBufferRight <= start1 && stop <= tEndBufferRight ){
+        else if( stop > tEndBuffer ){
           rotateBuffers('right');
         }
         //
-        // 3) if centre buffer has not been loaded:
+        // 5) if centre buffer has not been loaded:
         //    load it now
         if( !bufferLoaded ){
-          drawToBuffer( 0 );
+          loadBuffer( 0 );
         }
         //
-        // 4) if start1 <= tTriggerLeft and left buffer not loaded
-        //  load the left buffer
-        var tTriggerLeft = +tStartBuffer + duration/2;
-        if( start1 < tTriggerLeft && !bufferLeftLoaded ){
-          drawToBuffer( -1 );
-        }
-        //
-        // 5) if end >= tTriggerRight and right buffer not loaded
-        //  load the right buffer
-        var tTriggerRight = +tEndBuffer - duration/2;
-        if( tTriggerRight <= stop && !bufferRightLoaded ){
-          drawToBuffer( +1 );
-        }
 
       }
 
@@ -1750,21 +1835,51 @@ oscope_contextPrototype.chart = function(){
       // but defer subsequent updates to the canvas change
       // Note that someone still needs to listen to the metric,
       // so that it continues to update automatically
-      //var metricChange = function( theMetric ){
-        //return function( start, stop ){
-          //change(start, stop), focus();
-        //};
-      //};
+      var metricChange = function( theMetric ){
+        return function( start, stop ){
+          console.log( 'Metric change ' + theMetric.toString() + ': ' + start + ' to ' + stop + stateToString() );
+          var bufInd = 0;
+          if( +start < tStartBuffer ){
+            bufInd = -1;
+            // Check for a canceled load:
+            //if( !bufferLeftLoading ){
+              //return;
+            //}
+          }
+          else if( +start >= tStartBuffer && +start < tStartBufferRight ){
+            bufInd = 0;
+            //if( !bufferLoading ){
+              //return;
+            //}
+          }
+          else{
+            bufInd = +1;
+            //if( !bufferRightLoading ){
+              //return;
+            //}
+          }
 
-      //if( metric_ instanceof Array ){
-        //for( var j = 0; j < metric_.length; ++j ){
-          //metric_[j].on('change.chart-' + id, metricChange(metric_[j]) );
-        //}
-      //}
-      //else{
-        //metric_.on('change.chart-' + id, metricChange(metric_) );
-      //}
+          drawToBuffer(bufInd);
+          if( bufInd === 0 ){
+            drawCurrentBuffer();
+          }
+        };
+      };
+
+      if( metric_ instanceof Array ){
+        for( var j = 0; j < metric_.length; ++j ){
+          metric_[j].on('change.chart-' + id, metricChange(metric_[j]) );
+        }
+      }
+      else{
+        metric_.on('change.chart-' + id, metricChange(metric_) );
+      }
+
+    // Start the load for the first view:
+    loadBuffer(0);
+
     });
+
   }
 
   chart.remove = function(selection) {
