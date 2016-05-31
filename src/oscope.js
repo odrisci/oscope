@@ -12,14 +12,14 @@ oscope_contextPrototype.oscope = function(){
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       lineWidth = 1,
       barWidth = 5,
-      zoom = d3.behavior.zoom();
+      drag = d3.behavior.drag();
 
   function oscope(selection) {
 
     selection.append('canvas')
       .on('mousemove.oscope', function() { context.focus(Math.round(d3.mouse(this)[0])); })
       .on('mouseout.oscope', function() { context.focus(null); } )
-      .call( zoom.on( 'zoom', function pan(){
+      .call( drag.on( 'drag', function pan(){
         context.pan();
       }))
       .attr('width', width)

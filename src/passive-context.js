@@ -9,8 +9,8 @@ oscope.passive_context = function(){
       scale = context.scale = d3.time.scale().range([0, size]),
       type = 'passive',
       focus,
+      id = ++oscope_id,
       onepx = scale.invert(1) - scale.invert(0),
-      translate0 = 0,
       overlap = oscope_metricOverlap * step;
   function update() {
     onepx = duration/size;
@@ -22,7 +22,7 @@ oscope.passive_context = function(){
 
     setTimeout( change, 0 );
 
-    return context;
+    return change();
   }
 
   function change(){
@@ -91,7 +91,6 @@ oscope.passive_context = function(){
     start0 = new Date( _ );
     stop0 = new Date( +start0 + duration );
     scale.domain( [start0, stop0 ] );
-    update();
     return change();
   };
 
@@ -100,17 +99,14 @@ oscope.passive_context = function(){
     stop0 = new Date(_);
     start0 = new Date( +stop0 - duration );
     scale.domain( [start0, stop0 ] );
-    update();
     return change();
   };
 
   context.pan = function(){
-    var dx = d3.event.translate[0] - translate0;
+    var dx = d3.event.dx;
     var newDomain = [ scale.invert( scale.range()[0] - dx ),
       scale.invert( scale.range()[1]  - dx ) ];
     scale.domain( newDomain );
-    translate0 = d3.event.translate[0];
-    update();
     return change();
   };
 
@@ -134,7 +130,7 @@ oscope.passive_context = function(){
     return context;
   };
 
-  d3.select(window).on("keydown.context-" + ++oscope_id, function() {
+  d3.select(window).on("keydown.context-" + id, function() {
     switch (!d3.event.metaKey && d3.event.keyCode) {
       case 37: // left
         if (focus === null) focus = context.scale(stop1-onepx);

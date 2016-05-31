@@ -17,14 +17,14 @@ oscope_contextPrototype.chart = function(){
       format = d3.format('.2s'),
       colors = ["#08519c","#3182bd","#6baed6","#bdd7e7","#bae4b3","#74c476","#31a354","#006d2c"],
       lineWidth = 1,
-      zoom = d3.behavior.zoom();
+      drag = d3.behavior.drag();
 
   function chart(selection) {
 
     selection.append('canvas')
       .on('mousemove.chart', function() { context.focus(Math.round(d3.mouse(this)[0])); })
       .on('mouseout.chart', function() { context.focus(null); } )
-      .call( zoom.on( 'zoom', function pan(){
+      .call( drag.on( 'drag', function pan(){
         context.pan();
       }))
       .attr('width', width)
