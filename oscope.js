@@ -1,4 +1,4 @@
-/*! oscope v1.6.0 - 2016-05-30 
+/*! oscope v1.6.0 - 2016-11-29 
  * License:  */
 'use strict';
 (function(exports){
@@ -571,7 +571,7 @@ oscope_contextPrototype.metric = function(request, name) {
 
   // Prefetch new data into a temporary array.
   function prepare(start1, stop) {
-    if( fetching ) return;
+    //if( fetching ) return;
     fetching = true;
     var start0 = start1, origData=values.data();
     values = new ts.timeSeries();
@@ -1188,7 +1188,7 @@ oscope_contextPrototype.oscope = function(){
 
 
         ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
-        if( canvasUpdated && i0 > 0 && iStop > i0 ){
+        if( canvasUpdated && i0 >= 0 && iStop > i0 ){
           var maxW = Math.min( iStop-i0, width );
           ctx.drawImage(ctx0.canvas, i0, 0, maxW, height,
                       i0, 0, maxW, height );

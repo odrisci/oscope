@@ -352,7 +352,7 @@ oscope_contextPrototype.oscope = function(){
 
 
         ctx.clearRect(i0, 0, iStop - i0 + barWidth + 1, height );
-        if( canvasUpdated && i0 > 0 && iStop > i0 ){
+        if( canvasUpdated && i0 >= 0 && iStop > i0 ){
           var maxW = Math.min( iStop-i0, width );
           ctx.drawImage(ctx0.canvas, i0, 0, maxW, height,
                       i0, 0, maxW, height );
