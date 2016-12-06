@@ -104,6 +104,16 @@ oscope.passive_context = function(){
 
   context.pan = function(){
     var dx = d3.event.dx;
+    if( d3.event.type === 'wheel' ){
+      var wdx = d3.event.wheelDeltaX;
+      var wdy = d3.event.wheelDeltaY;
+      if( Math.abs( wdx ) > Math.abs( wdy ) ){
+        dx = wdx;
+      }
+      else{
+        dx = wdy;
+      }
+    }
     var newDomain = [ scale.invert( scale.range()[0] - dx ),
       scale.invert( scale.range()[1]  - dx ) ];
     scale.domain( newDomain );
